@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>กำลังทำข้อสอบ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- หน้าจอกำลังโหลด -->
+  <div id="loading-screen" class="spinner-wrap">
+    <div class="spinner"></div>
+    <p class="text-secondary">กำลังเตรียมข้อสอบ...</p>
+  </div>
+
+  <!-- หน้าจอแจ้งเตือนถ้าคลังคำถามไม่พอ -->
+  <div id="not-enough-screen" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.25rem;">
+    <div class="card fade-up" style="padding:2rem;max-width:420px;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem;">🗝️</div>
+      <h2 class="mb-2">ไม่พบคำถามในคลัง</h2>
+      <p class="text-secondary text-sm mb-3">ขออภัย ขณะนี้ยังไม่มีคำถามเพียงพอสำหรับโหมดที่คุณเลือก กรุณาลองโหมดอื่นหรือติดต่อผู้ดูแลระบบ</p>
+      <a href="dashboard.html" class="btn btn-gold btn-full">กลับไปเลือกโหมดอื่น</a>
+    </div>
+  </div>
+
+  <!-- หน้าจอทำข้อสอบหลัก -->
+  <div id="exam-screen" class="hidden">
+    <header class="exam-header">
+      <h1 id="exam-mode-title" class="font-display" style="font-size:1.05rem;"></h1>
+      <div class="exam-timer" id="time-left">00:00</div>
+    </header>
+    <div class="exam-progress-bar">
+      <div id="exam-progress-fill" class="exam-progress-fill" style="width:0%;"></div>
+    </div>
+
+    <main class="container-md" style="padding: 2rem 1.25rem;">
+      <div class="card fade-up" style="padding:1.75rem;">
+        <div class="question-number-badge">
+          ⚔️ ข้อที่ <span id="current-question-number"></span> / <span id="total-questions"></span>
+        </div>
+
+        <!-- คำถาม (ใส่ผ่าน textContent เท่านั้น) -->
+        <div id="question-text" class="question-text"></div>
+
+        <!-- ตารางข้อมูลประกอบคำถาม (ถ้ามี) -->
+        <div id="question-table-container" class="hidden" style="overflow-x:auto;">
+          <table class="question-table" id="question-table"></table>
+        </div>
+
+        <div id="options-container"></div>
+
+        <div class="flex justify-between mt-4">
+          <button id="prev-button" class="btn btn-ghost">← ข้อก่อนหน้า</button>
+          <button id="next-button" class="btn btn-gold">ข้อต่อไป →</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal ยืนยันก่อนส่งคำตอบ -->
+  <div id="confirm-submit-modal" class="hidden modal-overlay">
+    <div class="modal-box">
+      <h3 class="modal-title">⚠️ ยืนยันการส่งคำตอบ</h3>
+      <p class="modal-desc">
+        คุณตอบไปแล้ว <strong class="text-gold" id="answered-count"></strong> จาก
+        <strong class="text-gold" id="modal-total-questions"></strong> ข้อ<br><br>
+        เมื่อส่งคำตอบแล้วจะไม่สามารถกลับมาแก้ไขได้ ยืนยันหรือไม่?
+      </p>
+      <div class="modal-actions">
+        <button id="cancel-submit-btn" class="btn btn-ghost">ยกเลิก</button>
+        <button id="confirm-submit-btn" class="btn btn-gold">ยืนยันส่งคำตอบ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/exam-engine.js"></script>
+  <script src="js/exam.js"></script>
+</body>
+</html>

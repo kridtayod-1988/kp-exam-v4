@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>โปรไฟล์ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">⚔️</span>
+        เตรียมสอบ <span class="brand-accent">ก.พ.</span>
+      </a>
+      <div class="navbar-nav">
+        <a href="dashboard.html">หน้าหลัก</a>
+        <button id="logout-btn">ออกจากระบบ</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-md" style="padding: 2rem 1.25rem 4rem;">
+    <h1 class="mb-4">โปรไฟล์นักสู้</h1>
+
+    <!-- ข้อมูลส่วนตัว + Level -->
+    <div class="card fade-up mb-3" style="padding:2rem;">
+      <div class="flex items-center gap-3 mb-3" style="flex-wrap:wrap;">
+        <img id="profile-photo" src="" alt="" class="hidden" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--border-active);">
+        <div id="profile-photo-placeholder" style="width:64px;height:64px;border-radius:50%;background:var(--gold-glow);border:2px solid var(--border-active);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:var(--gold-400);font-family:var(--font-display);">?</div>
+        <div style="flex:1;">
+          <p id="profile-name" class="font-bold" style="font-size:1.25rem;font-family:var(--font-display);"></p>
+          <p id="profile-email" class="text-secondary text-sm"></p>
+        </div>
+        <div class="level-badge">
+          <span>LV.</span><span id="level-num" class="lv-num">1</span>
+        </div>
+      </div>
+
+      <div class="exp-bar-wrap mb-3">
+        <div class="exp-bar-labels">
+          <span>ประสบการณ์</span>
+          <span id="exp-label">0 / 100 EXP</span>
+        </div>
+        <div class="exp-bar-track">
+          <div id="exp-fill" class="exp-bar-fill" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <div id="edit-error" class="form-error hidden"></div>
+      <div id="edit-success" class="form-success hidden"></div>
+
+      <form id="edit-profile-form">
+        <div class="form-group">
+          <label for="edit-name" class="form-label">ชื่อที่แสดง</label>
+          <input type="text" id="edit-name" maxlength="100" class="form-input">
+        </div>
+        <button type="submit" class="btn btn-gold">บันทึกการเปลี่ยนแปลง</button>
+      </form>
+
+      <div class="divider"></div>
+      <button id="change-password-btn" class="text-sm" style="background:none;border:none;color:var(--gold-400);cursor:pointer;font-family:var(--font-body);">
+        เปลี่ยนรหัสผ่าน (ส่งลิงก์ไปที่อีเมล)
+      </button>
+    </div>
+
+    <!-- สถิติ -->
+    <div class="grid-2 mb-4">
+      <div class="card stat-card fade-up">
+        <div class="stat-icon">🎮</div>
+        <p id="stat-total-attempts" class="stat-value">-</p>
+        <p class="stat-label">ครั้งที่ทำข้อสอบทั้งหมด</p>
+      </div>
+      <div class="card stat-card fade-up">
+        <div class="stat-icon">👑</div>
+        <p id="stat-best-score" class="stat-value">-</p>
+        <p class="stat-label">คะแนนดีที่สุด</p>
+      </div>
+    </div>
+
+    <!-- ประวัติการทำข้อสอบ -->
+    <h2 class="mb-3">ประวัติภารกิจ</h2>
+    <div id="history-list">
+      <p class="text-secondary text-sm">กำลังโหลด...</p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>สมัครสมาชิก — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.25rem;">
+
+  <div class="container-sm fade-up">
+    <div class="text-center mb-3">
+      <a href="index.html" class="navbar-brand" style="justify-content:center;display:inline-flex;">
+        <span class="brand-icon">⚔️</span>
+        เตรียมสอบ <span class="brand-accent">ก.พ.</span>
+      </a>
+    </div>
+
+    <div class="card" style="padding:2rem;">
+
+      <!-- ขั้นที่ 1: กรอกข้อมูล -->
+      <div id="signup-step-1">
+        <h1 class="text-center mb-1" style="font-size:1.5rem;">สร้างตัวละครใหม่</h1>
+        <p class="text-center text-sm text-muted mb-3">ขั้นตอนที่ 1 จาก 2 — กรอกข้อมูล</p>
+
+        <div id="error-banner-1" class="form-error hidden"></div>
+
+        <form id="signup-form-step1">
+          <div class="form-group">
+            <label for="signup-name" class="form-label">ชื่อที่แสดง</label>
+            <input type="text" id="signup-name" required maxlength="100" class="form-input" placeholder="ชื่อ-นามสกุล หรือชื่อเล่น">
+          </div>
+          <div class="form-group">
+            <label for="signup-email" class="form-label">อีเมล</label>
+            <input type="email" id="signup-email" required class="form-input" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label for="signup-password" class="form-label">รหัสผ่าน</label>
+            <input type="password" id="signup-password" required minlength="6" class="form-input" placeholder="อย่างน้อย 6 ตัวอักษร">
+          </div>
+          <div class="form-group">
+            <label for="signup-password-confirm" class="form-label">ยืนยันรหัสผ่าน</label>
+            <input type="password" id="signup-password-confirm" required minlength="6" class="form-input" placeholder="กรอกรหัสผ่านอีกครั้ง">
+          </div>
+
+          <div class="form-group" style="background:rgba(255,255,255,0.03);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:1rem;max-height:160px;overflow-y:auto;">
+            <p class="font-bold text-sm mb-1">คำชี้แจงการใช้งานระบบ</p>
+            <ul class="text-secondary text-sm" style="list-style:disc;padding-left:1.2rem;line-height:1.7;">
+              <li>ระบบนี้สร้างขึ้นเพื่อใช้ฝึกทำข้อสอบ ก.พ. เพื่อการศึกษาเท่านั้น ไม่ใช่ระบบสอบจริงของสำนักงาน ก.พ. และไม่มีความเกี่ยวข้องกับสำนักงาน ก.พ. แต่อย่างใด</li>
+              <li>ข้อมูลที่กรอก (ชื่อ, อีเมล, ประวัติการทำข้อสอบ) จะถูกเก็บไว้ในระบบเพื่อแสดงผลสถิติส่วนตัวของคุณเท่านั้น</li>
+              <li>กรุณาใช้รหัสผ่านที่ไม่ซ้ำกับบริการอื่น และไม่เปิดเผยรหัสผ่านให้ผู้อื่นทราบ</li>
+              <li>ทีมผู้ดูแลระบบขอสงวนสิทธิ์ในการระงับบัญชีที่มีการใช้งานผิดวัตถุประสงค์</li>
+            </ul>
+          </div>
+
+          <label class="checkbox-label mb-3">
+            <input type="checkbox" id="signup-agree-checkbox">
+            <span>ข้าพเจ้าได้อ่านและยอมรับคำชี้แจงการใช้งานระบบข้างต้นแล้ว</span>
+          </label>
+
+          <button type="submit" id="signup-step1-btn" disabled class="btn btn-full btn-lg">
+            ถัดไป: ตรวจสอบข้อมูล
+          </button>
+        </form>
+
+        <p class="text-center text-sm text-secondary mt-3">
+          มีบัญชีอยู่แล้ว? <a href="login.html" class="font-bold">เข้าสู่ระบบ</a>
+        </p>
+      </div>
+
+      <!-- ขั้นที่ 2: ยืนยันข้อมูล -->
+      <div id="signup-step-2" class="hidden">
+        <h1 class="text-center mb-1" style="font-size:1.5rem;">ตรวจสอบข้อมูล</h1>
+        <p class="text-center text-sm text-muted mb-3">ขั้นตอนที่ 2 จาก 2 — กรุณายืนยันก่อนสมัครจริง</p>
+
+        <div id="error-banner-2" class="form-error hidden"></div>
+
+        <div class="mb-3" style="background:var(--gold-glow);border:1px solid var(--border-active);border-radius:var(--radius-md);padding:1rem;">
+          <p class="mb-1"><span class="text-secondary text-sm">ชื่อที่แสดง:</span> <span id="confirm-name" class="font-bold"></span></p>
+          <p><span class="text-secondary text-sm">อีเมล:</span> <span id="confirm-email" class="font-bold"></span></p>
+        </div>
+
+        <p class="text-sm text-secondary mb-3">กรุณาตรวจสอบว่าข้อมูลข้างต้นถูกต้อง หากต้องการแก้ไข กดปุ่ม "กลับไปแก้ไข" ด้านล่าง</p>
+
+        <div class="flex gap-2">
+          <button type="button" id="signup-back-btn" class="btn btn-ghost" style="flex:1;">
+            ← กลับไปแก้ไข
+          </button>
+          <button type="button" id="signup-confirm-btn" class="btn btn-gold" style="flex:1;">
+            ✅ ยืนยันสมัครสมาชิก
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/signup.js"></script>
+</body>
+</html>

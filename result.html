@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>ผลการทดสอบ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">⚔️</span>
+        เตรียมสอบ <span class="brand-accent">ก.พ.</span>
+      </a>
+    </div>
+  </nav>
+
+  <main class="container-md" style="padding: 2rem 1.25rem 4rem;">
+    <div id="loading-indicator" class="spinner-wrap">
+      <div class="spinner"></div>
+      <p class="text-secondary">กำลังโหลดผลลัพธ์...</p>
+    </div>
+
+    <div id="result-content" class="hidden">
+
+      <div class="card fade-up score-ring-wrap mb-3">
+        <div id="score-ring" class="score-ring" style="--pct:0%;">
+          <div class="score-ring-inner">
+            <div class="score-num"><span id="final-score"></span></div>
+            <div class="score-total">/ <span id="total-possible-score"></span> ข้อ</div>
+          </div>
+        </div>
+        <h1 class="mb-1" style="font-size:1.4rem;">ทำภารกิจสำเร็จ!</h1>
+        <p id="result-message" class="text-secondary mb-3"></p>
+
+        <div id="exp-gained-banner" class="exp-gained-banner hidden">
+          ⭐ +<span id="exp-gained-amount">0</span> EXP
+        </div>
+        <div id="level-up-banner" class="hidden mt-2">
+          <div class="level-badge" style="font-size:1rem;padding:0.5rem 1.25rem;">
+            🎉 เลเวลอัป! ตอนนี้คุณคือ LV.<span id="level-up-num"></span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="mb-3">เฉลยและคำอธิบาย</h2>
+      <div id="answer-review"></div>
+
+      <div class="flex gap-2 mt-3">
+        <a href="dashboard.html" class="btn btn-ghost" style="flex:1;">กลับสู่หน้าหลัก</a>
+        <a href="profile.html" class="btn btn-gold" style="flex:1;">ดูประวัติทั้งหมด</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/result.js"></script>
+</body>
+</html>

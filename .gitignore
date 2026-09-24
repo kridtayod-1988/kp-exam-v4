@@ -1,0 +1,14 @@
+# Supabase CLI local artifacts
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Node dependencies (เผื่อเพิ่ม tooling ในอนาคต)
+node_modules/
+
+# OS / editor files
+.DS_Store
+*.log
+
+# GitHub Pages build artifacts (ถ้ามีการเพิ่ม build step ทีหลัง)
+dist/
