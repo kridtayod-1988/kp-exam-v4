@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>จัดการคำถาม — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main">
+
+      <!-- ===== หน้า List ===== -->
+      <div id="view-list">
+        <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1 class="mb-1">จัดการคำถาม</h1>
+            <p class="text-secondary">คำถามทั้งหมดในคลัง</p>
+          </div>
+          <button id="new-question-btn" class="btn btn-gold">+ เพิ่มคำถามใหม่</button>
+        </div>
+
+        <div class="card mb-3" style="padding:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <input type="text" id="search-input" placeholder="ค้นหาคำถาม..." class="form-input" style="flex:1;min-width:200px;">
+          <select id="filter-category" class="form-select" style="width:auto;">
+            <option value="">ทุกหมวดหมู่</option>
+          </select>
+          <select id="filter-year" class="form-select" style="width:auto;">
+            <option value="">ทุกปี</option>
+          </select>
+          <select id="filter-source" class="form-select" style="width:auto;">
+            <option value="">ทุกที่มา</option>
+            <option value="manual">เขียนเอง</option>
+            <option value="ai_generated">AI</option>
+          </select>
+        </div>
+
+        <div class="card" style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>คำถาม</th>
+                <th>หมวดหมู่</th>
+                <th>ปี</th>
+                <th>ที่มา</th>
+                <th>สถานะ</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="questions-table-body">
+              <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="pagination-info" class="text-sm text-muted mt-2"></div>
+      </div>
+
+      <!-- ===== หน้าฟอร์มเพิ่ม/แก้ไข ===== -->
+      <div id="view-form" class="hidden">
+        <button id="back-to-list-btn" class="text-sm mb-2" style="background:none;border:none;color:var(--gold-400);cursor:pointer;font-family:var(--font-body);">← กลับไปหน้ารายการ</button>
+        <h1 id="form-title" class="mb-4">เพิ่มคำถามใหม่</h1>
+
+        <div id="form-error" class="form-error hidden"></div>
+
+        <form id="question-form" class="card" style="padding:2rem;">
+          <input type="hidden" id="question-id-input">
+
+          <div class="grid-2 mb-2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">หมวดหมู่ *</label>
+              <select id="form-category" required class="form-select"></select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">ปีข้อสอบ (ไม่บังคับ)</label>
+              <select id="form-year" class="form-select">
+                <option value="">ไม่ระบุปี</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">คำถาม * <span class="text-muted" style="text-transform:none;">(สูงสุด 2000 ตัวอักษร)</span></label>
+            <textarea id="form-question-text" required maxlength="2000" rows="3" class="form-textarea"></textarea>
+          </div>
+
+          <!-- ตารางข้อมูลประกอบคำถาม (ออปชัน) -->
+          <div class="form-group">
+            <div class="flex items-center justify-between mb-2">
+              <label class="form-label" style="margin-bottom:0;">ตารางข้อมูลประกอบคำถาม (ไม่บังคับ)</label>
+              <label class="checkbox-label" style="font-size:0.85rem;">
+                <input type="checkbox" id="enable-table-checkbox">
+                เพิ่มตารางข้อมูล
+              </label>
+            </div>
+            <div id="table-builder" class="hidden" style="border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:1rem;background:rgba(255,255,255,0.02);">
+              <div class="flex justify-between mb-3">
+                <span class="text-xs text-secondary font-bold">หัวตาราง (คอลัมน์)</span>
+                <div class="flex gap-1">
+                  <button type="button" id="add-column-btn" class="btn btn-ghost btn-sm">+ คอลัมน์</button>
+                  <button type="button" id="add-row-btn" class="btn btn-ghost btn-sm">+ แถว</button>
+                </div>
+              </div>
+              <div id="table-grid-container" style="overflow-x:auto;"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ตัวเลือกคำตอบ * (4 ข้อ — เลือกข้อที่ถูกต้อง)</label>
+            <div id="options-builder"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">คำอธิบายเฉลย *</label>
+            <textarea id="form-explanation" required rows="3" class="form-textarea"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ระดับความยาก</label>
+            <select id="form-difficulty" class="form-select">
+              <option value="easy">ง่าย</option>
+              <option value="medium" selected>กลาง</option>
+              <option value="hard">ยาก</option>
+            </select>
+          </div>
+
+          <div class="flex gap-2 mt-3" style="padding-top:1rem;border-top:1px solid var(--border-subtle);">
+            <button type="submit" class="btn btn-gold">บันทึก</button>
+            <button type="button" id="cancel-form-btn" class="btn btn-ghost">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/questions.js"></script>
+</body>
+</html>

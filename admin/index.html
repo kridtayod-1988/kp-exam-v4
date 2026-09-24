@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>แดชบอร์ดผู้ดูแลระบบ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main">
+      <h1 class="mb-1">แดชบอร์ดผู้ดูแลระบบ</h1>
+      <p class="text-secondary mb-4">สรุปภาพรวมของระบบ</p>
+
+      <div class="grid-3 mb-4" style="grid-template-columns:repeat(4,1fr);">
+        <div class="card stat-card fade-up">
+          <div class="stat-icon">❓</div>
+          <p id="stat-total-questions" class="stat-value">-</p>
+          <p class="stat-label">คำถามในคลัง</p>
+        </div>
+        <div class="card stat-card fade-up">
+          <div class="stat-icon">👥</div>
+          <p id="stat-total-users" class="stat-value">-</p>
+          <p class="stat-label">ผู้ใช้ทั้งหมด</p>
+        </div>
+        <div class="card stat-card fade-up">
+          <div class="stat-icon">🎮</div>
+          <p id="stat-total-attempts" class="stat-value">-</p>
+          <p class="stat-label">การทำข้อสอบทั้งหมด</p>
+        </div>
+        <div class="card stat-card fade-up">
+          <div class="stat-icon">🗂️</div>
+          <p id="stat-total-categories" class="stat-value">-</p>
+          <p class="stat-label">หมวดหมู่ที่เปิดใช้งาน</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card fade-up" style="padding:1.5rem;">
+          <h2 class="mb-3" style="font-size:1.1rem;">ทางลัด</h2>
+          <div class="flex flex-col gap-1">
+            <a href="questions.html?action=new" class="btn btn-outline btn-full" style="justify-content:flex-start;">+ เพิ่มคำถามใหม่</a>
+            <a href="ai-generate.html" class="btn btn-outline btn-full" style="justify-content:flex-start;">🤖 สร้างข้อสอบด้วย AI</a>
+            <a href="users.html" class="btn btn-outline btn-full" style="justify-content:flex-start;">จัดการผู้ใช้</a>
+          </div>
+        </div>
+
+        <div class="card fade-up" style="padding:1.5rem;">
+          <h2 class="mb-3" style="font-size:1.1rem;">การทำข้อสอบล่าสุด</h2>
+          <div id="recent-attempts-list" class="text-sm">
+            <p class="text-muted">กำลังโหลด...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/admin-dashboard.js"></script>
+</body>
+</html>

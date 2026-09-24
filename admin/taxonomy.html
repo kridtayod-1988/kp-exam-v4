@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>จัดการหมวดหมู่ / ปี — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main">
+      <h1 class="mb-1">จัดการหมวดหมู่ / ปี</h1>
+      <p class="text-secondary mb-4">หมวดหมู่และปีข้อสอบที่ใช้แยกคลังคำถาม</p>
+
+      <div class="grid-2">
+
+        <!-- หมวดหมู่ -->
+        <div class="card" style="padding:1.5rem;">
+          <div class="flex justify-between items-center mb-3">
+            <h2 style="font-size:1.1rem;">หมวดหมู่</h2>
+            <button id="add-category-btn" class="btn btn-gold btn-sm">+ เพิ่ม</button>
+          </div>
+          <div id="category-list" class="flex flex-col gap-2">
+            <p class="text-muted text-sm">กำลังโหลด...</p>
+          </div>
+        </div>
+
+        <!-- ปีข้อสอบ -->
+        <div class="card" style="padding:1.5rem;">
+          <div class="flex justify-between items-center mb-3">
+            <h2 style="font-size:1.1rem;">ปีข้อสอบ</h2>
+            <button id="add-year-btn" class="btn btn-outline btn-sm">+ เพิ่ม</button>
+          </div>
+          <div id="year-list" class="flex flex-col gap-2">
+            <p class="text-muted text-sm">กำลังโหลด...</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal เพิ่ม/แก้ไขหมวดหมู่ -->
+  <div id="category-modal" class="hidden modal-overlay">
+    <div class="modal-box">
+      <h3 id="category-modal-title" class="modal-title">เพิ่มหมวดหมู่</h3>
+      <input type="hidden" id="category-id-input">
+      <div class="form-group">
+        <label class="form-label">ชื่อหมวดหมู่</label>
+        <input type="text" id="category-name-input" maxlength="100" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ลำดับการแสดงผล</label>
+        <input type="number" id="category-order-input" value="0" class="form-input">
+      </div>
+      <div class="modal-actions">
+        <button id="category-modal-cancel" class="btn btn-ghost">ยกเลิก</button>
+        <button id="category-modal-save" class="btn btn-gold">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal เพิ่ม/แก้ไขปี -->
+  <div id="year-modal" class="hidden modal-overlay">
+    <div class="modal-box">
+      <h3 id="year-modal-title" class="modal-title">เพิ่มปีข้อสอบ</h3>
+      <input type="hidden" id="year-id-input">
+      <div class="form-group">
+        <label class="form-label">ป้ายชื่อ (เช่น "ก.พ. 2568")</label>
+        <input type="text" id="year-label-input" maxlength="50" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ปี พ.ศ. (ตัวเลข สำหรับเรียงลำดับ)</label>
+        <input type="number" id="year-number-input" class="form-input">
+      </div>
+      <div class="modal-actions">
+        <button id="year-modal-cancel" class="btn btn-ghost">ยกเลิก</button>
+        <button id="year-modal-save" class="btn btn-gold">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/taxonomy.js"></script>
+</body>
+</html>

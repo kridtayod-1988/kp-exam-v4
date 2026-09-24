@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>สร้างข้อสอบด้วย AI — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main">
+      <h1 class="mb-1">🤖 สร้างข้อสอบด้วย AI</h1>
+      <p class="text-secondary mb-3">AI จะร่างคำถามให้ดูก่อน คุณต้องตรวจสอบ/แก้ไข และกดบันทึกเองจึงจะเข้าคลังจริง</p>
+
+      <div class="warning-banner mb-4">
+        ⚠️ การเรียก AI ทำจาก browser ของคุณโดยตรง โดยใช้ key ที่ตั้งไว้ในหน้า "ตั้งค่าระบบ"
+        เนื้อหาที่ AI ร่างมาจะถูก sanitize ก่อนแสดงผล แต่โปรดตรวจทานความถูกต้องทางวิชาการเองก่อนบันทึกเสมอ
+      </div>
+
+      <!-- ฟอร์มตั้งค่าการร่าง -->
+      <div id="generate-form-section" class="card mb-4" style="padding:1.75rem;">
+        <div id="ai-config-error" class="form-error hidden"></div>
+
+        <div class="grid-2 mb-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">AI Provider</label>
+            <select id="ai-provider-select" class="form-select">
+              <option value="claude">Claude (Anthropic)</option>
+              <option value="gemini">Gemini (Google)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">จำนวนข้อที่จะร่าง</label>
+            <input type="number" id="ai-num-questions" value="5" min="1" max="20" class="form-input">
+          </div>
+        </div>
+
+        <div class="grid-2 mb-2 mt-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">หมวดหมู่</label>
+            <select id="ai-category-select" class="form-select"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">ปีข้อสอบ (ไม่บังคับ)</label>
+            <select id="ai-year-select" class="form-select">
+              <option value="">ไม่ระบุปี</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group mt-2">
+          <label class="form-label">ระดับความยาก</label>
+          <select id="ai-difficulty-select" class="form-select">
+            <option value="easy">ง่าย</option>
+            <option value="medium" selected>กลาง</option>
+            <option value="hard">ยาก</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">คำแนะนำเพิ่มเติม (ไม่บังคับ)</label>
+          <textarea id="ai-extra-instructions" rows="2" placeholder="เช่น เน้นเรื่องกฎหมายปกครอง, ให้มีตารางข้อมูลประกอบ 1-2 ข้อ" class="form-textarea"></textarea>
+        </div>
+
+        <button id="generate-draft-btn" class="btn btn-gold btn-lg">🤖 ร่างข้อสอบ</button>
+      </div>
+
+      <!-- หน้าจอกำลังร่าง -->
+      <div id="generating-indicator" class="hidden spinner-wrap" style="min-height:30vh;">
+        <div class="spinner"></div>
+        <p class="text-secondary">AI กำลังร่างข้อสอบ... อาจใช้เวลาสักครู่</p>
+      </div>
+
+      <!-- รายการร่าง -->
+      <div id="drafts-section" class="hidden">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap:wrap;gap:0.75rem;">
+          <h2 style="font-size:1.15rem;">ร่างข้อสอบ (<span id="draft-count" class="text-gold">0</span> ข้อ)</h2>
+          <div class="flex gap-2">
+            <button id="discard-all-btn" class="btn btn-ghost btn-sm">ยกเลิกทั้งหมด</button>
+            <button id="save-all-drafts-btn" class="btn btn-gold btn-sm">💾 บันทึกข้อที่เลือกลงคลัง</button>
+          </div>
+        </div>
+        <div id="drafts-list" class="flex flex-col gap-2"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal แก้ไขร่าง -->
+  <div id="edit-draft-modal" class="hidden modal-overlay">
+    <div class="modal-box" style="max-width:600px;max-height:90vh;overflow-y:auto;">
+      <h3 class="modal-title">แก้ไขร่างคำถาม</h3>
+      <input type="hidden" id="edit-draft-index">
+
+      <div class="form-group">
+        <label class="form-label">คำถาม</label>
+        <textarea id="edit-draft-question" rows="2" maxlength="2000" class="form-textarea"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ตัวเลือก (เลือกข้อที่ถูก)</label>
+        <div id="edit-draft-options"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">คำอธิบายเฉลย</label>
+        <textarea id="edit-draft-explanation" rows="2" class="form-textarea"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button id="edit-draft-cancel" class="btn btn-ghost">ยกเลิก</button>
+        <button id="edit-draft-save" class="btn btn-gold">บันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/ai-generate.js"></script>
+</body>
+</html>

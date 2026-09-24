@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>จัดการผู้ใช้ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main">
+      <h1 class="mb-1">จัดการผู้ใช้</h1>
+      <p class="text-secondary mb-4">ผู้ใช้ทั้งหมดในระบบ</p>
+
+      <div class="card mb-3" style="padding:1rem;">
+        <input type="text" id="user-search-input" placeholder="ค้นหาด้วยชื่อหรืออีเมล..." class="form-input">
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ชื่อ</th>
+              <th>อีเมล</th>
+              <th>สิทธิ์</th>
+              <th>สถิติ</th>
+              <th>สมัครเมื่อ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="users-count-info" class="text-sm text-muted mt-2"></div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/users.js"></script>
+</body>
+</html>

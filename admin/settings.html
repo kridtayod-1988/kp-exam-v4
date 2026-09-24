@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <title>ตั้งค่าระบบ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside id="admin-sidebar" class="admin-sidebar"></aside>
+
+    <main class="admin-main" style="max-width:640px;">
+      <h1 class="mb-4">ตั้งค่าระบบ</h1>
+
+      <div id="settings-success" class="form-success hidden"></div>
+      <div id="settings-error" class="form-error hidden"></div>
+
+      <!-- การตั้งค่าทั่วไป -->
+      <div class="card mb-3" style="padding:1.5rem;">
+        <h2 class="mb-3" style="font-size:1.1rem;">ข้อสอบจริง</h2>
+        <div class="grid-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">จำนวนข้อ</label>
+            <input type="number" id="setting-full-count" class="form-input">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">เวลาสอบ (นาที)</label>
+            <input type="number" id="setting-full-time" class="form-input">
+          </div>
+        </div>
+      </div>
+
+      <!-- การเข้าสู่ระบบ -->
+      <div class="card mb-3" style="padding:1.5rem;">
+        <h2 class="mb-3" style="font-size:1.1rem;">การเข้าสู่ระบบ</h2>
+        <label class="checkbox-label mb-2">
+          <input type="checkbox" id="setting-allow-email">
+          <span>อนุญาตให้สมัครด้วย Email/Password</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="setting-allow-google">
+          <span>อนุญาตให้เข้าสู่ระบบด้วย Google</span>
+        </label>
+      </div>
+
+      <!-- โหมดปิดปรับปรุง -->
+      <div class="card mb-3" style="padding:1.5rem;">
+        <h2 class="mb-3" style="font-size:1.1rem;">โหมดปิดปรับปรุงระบบ</h2>
+        <label class="checkbox-label mb-2">
+          <input type="checkbox" id="setting-maintenance">
+          <span>เปิดโหมดปิดปรับปรุง (ผู้ใช้ทั่วไปจะเข้าระบบไม่ได้)</span>
+        </label>
+        <textarea id="setting-maintenance-msg" rows="2" placeholder="ข้อความที่แสดงระหว่างปิดปรับปรุง" class="form-textarea"></textarea>
+      </div>
+
+      <!-- AI API Keys -->
+      <div class="card mb-3" style="padding:1.5rem;border-color:rgba(251,146,60,0.3);">
+        <h2 class="mb-2" style="font-size:1.1rem;">AI API Keys (สำหรับสร้างข้อสอบด้วย AI)</h2>
+
+        <div class="warning-banner mb-3">
+          ⚠️ <strong>ข้อจำกัดด้านความปลอดภัย:</strong> Key เหล่านี้ใช้ร่วมกันโดย admin ทุกคน
+          และเรียกใช้งานตรงจาก browser ของ admin — หมายความว่า <strong>admin ทุกคนสามารถเห็น/คัดลอก key
+          ผ่าน DevTools ได้</strong> หากบัญชี admin ใดถูกแฮ็ก หรือมี admin ออกจากทีม ควร revoke/สร้าง key ใหม่
+          ที่ฝั่งผู้ให้บริการทันที (Anthropic Console / Google AI Studio)
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Claude API Key (Anthropic)</label>
+          <input type="password" id="setting-claude-key" placeholder="sk-ant-..." class="form-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Gemini API Key (Google AI Studio)</label>
+          <input type="password" id="setting-gemini-key" placeholder="AIza..." class="form-input">
+        </div>
+      </div>
+
+      <button id="save-settings-btn" class="btn btn-gold btn-lg">บันทึกการตั้งค่า</button>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/admin/admin-layout.js"></script>
+  <script src="../js/admin/settings.js"></script>
+</body>
+</html>
