@@ -9,8 +9,8 @@
 // - เปิดใช้ Authentication → Providers → Email และ Google (ต้องตั้งค่า OAuth client ID ที่ Google Cloud Console ด้วย)
 // - schema/RLS policies ถูก deploy ผ่าน migration แล้ว (ดู supabase/migrations/)
 
-const SUPABASE_URL = "https://mivyilrytsoncvolhhev.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GDj2gqeUHXNYl3a7OllSuQ_HHt-TLEi";
+const SUPABASE_URL = "https://wefgreavazpfctayjnmp.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_91tqJTiGiTOvbrO7To4frQ_eEhivQyk";
 
 // เริ่มต้น Supabase client (ใช้ตัวแปร global ชื่อ `supabase` จาก CDN script ที่โหลดไว้ก่อนหน้าไฟล์นี้)
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
