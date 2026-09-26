@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://wefgreavazpfctayjnmp.supabase.co;">
   <title>เลือกภารกิจ — เตรียมสอบ ก.พ.</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -58,63 +58,43 @@
 
     <!-- โหมดแยกหมวดหมู่ -->
     <div class="card fade-up fade-up-2 mb-3" style="padding:1.75rem;">
-      <div class="flex items-center gap-2 mb-1">
+      <div class="flex items-center gap-2 mb-3">
         <span style="font-size:1.75rem;">📚</span>
         <div>
-          <div class="mode-title" style="font-size:1.05rem;">แยกตามหมวดหมู่</div>
-          <div class="text-secondary text-sm">เลือกหมวดหมู่และจำนวนข้อที่ต้องการฝึก</div>
+          <div class="mode-title" style="font-size:1.05rem;">ฝึกตามหมวดหมู่</div>
+          <div class="text-secondary text-sm">เลือกหมวดหมู่เพื่อฝึกข้อสอบเฉพาะด้าน</div>
         </div>
       </div>
 
-      <div class="grid-2 mt-3 mb-2">
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">หมวดหมู่</label>
-          <select id="category-select" class="form-select">
-            <option value="">กำลังโหลด...</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">จำนวนข้อ</label>
-          <div class="count-group" id="category-count-buttons">
-            <button data-count="10" class="count-btn">10 ข้อ</button>
-            <button data-count="25" class="count-btn">25 ข้อ</button>
-            <button data-count="50" class="count-btn">50 ข้อ</button>
-          </div>
-        </div>
+      <div class="form-group mb-0">
+        <label class="form-label">หมวดหมู่</label>
+        <select id="category-select" class="form-select">
+          <option value="">กำลังโหลด...</option>
+        </select>
       </div>
-      <button id="start-category-exam-btn" class="btn btn-outline btn-full mt-2">
-        เริ่มทำข้อสอบแยกหมวดหมู่
+      <button id="start-category-exam-btn" class="btn btn-outline btn-full mt-3">
+        เริ่มฝึกตามหมวดหมู่
       </button>
     </div>
 
     <!-- โหมดแยกปี -->
     <div class="card fade-up fade-up-3" style="padding:1.75rem;">
-      <div class="flex items-center gap-2 mb-1">
+      <div class="flex items-center gap-2 mb-3">
         <span style="font-size:1.75rem;">📅</span>
         <div>
-          <div class="mode-title" style="font-size:1.05rem;">แยกตามปี</div>
-          <div class="text-secondary text-sm">เลือกปีข้อสอบและจำนวนข้อที่ต้องการฝึก</div>
+          <div class="mode-title" style="font-size:1.05rem;">ฝึกตามปีข้อสอบ</div>
+          <div class="text-secondary text-sm">เลือกปีเพื่อฝึกข้อสอบปีนั้นๆ</div>
         </div>
       </div>
 
-      <div class="grid-2 mt-3 mb-2">
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">ปีข้อสอบ</label>
-          <select id="year-select" class="form-select">
-            <option value="">กำลังโหลด...</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">จำนวนข้อ</label>
-          <div class="count-group" id="year-count-buttons">
-            <button data-count="10" class="count-btn-year">10 ข้อ</button>
-            <button data-count="25" class="count-btn-year">25 ข้อ</button>
-            <button data-count="50" class="count-btn-year">50 ข้อ</button>
-          </div>
-        </div>
+      <div class="form-group mb-0">
+        <label class="form-label">ปีข้อสอบ</label>
+        <select id="year-select" class="form-select">
+          <option value="">กำลังโหลด...</option>
+        </select>
       </div>
-      <button id="start-year-exam-btn" class="btn btn-outline btn-full mt-2">
-        เริ่มทำข้อสอบแยกปี
+      <button id="start-year-exam-btn" class="btn btn-outline btn-full mt-3">
+        เริ่มฝึกตามปีข้อสอบ
       </button>
     </div>
 
@@ -135,31 +115,6 @@
       </div>
     </div>
   </main>
-
-  <!-- CSS สำหรับ count-btn ใช้ style เดียวกับ count-btn แต่ class ชื่อต่างเพราะแยก group โหมดปี -->
-  <style>
-    .count-btn-year {
-      flex: 1;
-      padding: 0.6rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      color: var(--text-secondary);
-      font-family: var(--font-body);
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all var(--transition);
-      text-align: center;
-    }
-    .count-btn-year:hover { border-color: #4ade80; color: #4ade80; }
-    .count-btn-year.active {
-      background: rgba(74,222,128,0.12);
-      border-color: #4ade80;
-      color: #4ade80;
-      box-shadow: 0 0 12px rgba(74,222,128,0.25);
-    }
-  </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/supabase-config.js"></script>

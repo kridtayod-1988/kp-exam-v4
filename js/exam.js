@@ -1,5 +1,5 @@
 // js/exam.js
-// ตรรกะหน้าทำข้อสอบ — ใช้ textContent/escapeHtml เสมอเมื่อ render ข้อมูลจาก database
+// ตรรกะหน้าทำข้อสอบ — เพิ่มปุ่ม skip/exit + ส่งข้อสอบทันที
 
 let examUser = null;
 let examQuestions = [];
@@ -41,23 +41,26 @@ async function setupExam(config) {
   const filter = {};
 
   if (config.mode === "full100") {
-    const { data: sysConfig, error: sysError } = await sb
-      .from("system_config")
-      .select("full_exam_question_count, full_exam_time_minutes")
-      .eq("key", "public")
-      .single();
+    const { data: sysConfig, error: sysError } = await withRetry(
+      () => sb
+        .from("system_config")
+        .select("full_exam_question_count, full_exam_time_minutes")
+        .eq("key", "public")
+        .single(),
+      { operationName: "setupExam_full100" }
+    );
 
     if (sysError) throw sysError;
     count = sysConfig?.full_exam_question_count || 100;
     timeMinutes = sysConfig?.full_exam_time_minutes || 180;
   } else if (config.mode === "category") {
-    count = config.count;
+    count = config.count || 25;
     filter.categoryId = config.categoryId;
-    timeMinutes = Math.ceil(count * 1); // 1 นาทีต่อข้อ
+    timeMinutes = Math.ceil(count * 1.5); // 1.5 นาทีต่อข้อ
   } else if (config.mode === "year") {
-    count = config.count;
+    count = config.count || 25;
     filter.examYearId = config.examYearId;
-    timeMinutes = Math.ceil(count * 1);
+    timeMinutes = Math.ceil(count * 1.5);
   }
 
   const { questions, totalAvailable } = await drawQuestionsNoRepeat(examUser.id, count, filter);
@@ -83,6 +86,7 @@ async function setupExam(config) {
   setTextSafe("exam-mode-title", MODE_LABELS[config.mode] || "แบบทดสอบ");
   setTextSafe("total-questions", String(questions.length));
   document.getElementById("modal-total-questions").textContent = String(questions.length);
+  document.getElementById("exit-total-questions").textContent = String(questions.length);
 
   document.getElementById("loading-screen").classList.add("hidden");
   document.getElementById("exam-screen").classList.remove("hidden");
@@ -179,7 +183,6 @@ function renderQuestion() {
 
 /**
  * Render ตารางข้อมูลแบบปลอดภัย — escape ทุกเซลล์ก่อนใส่ผ่าน DOM API
- * (ไม่ใช้ string concatenation + innerHTML กับข้อมูลจาก database)
  */
 function renderQuestionTable(tableEl, tableData) {
   tableEl.innerHTML = "";
@@ -214,6 +217,21 @@ document.getElementById("prev-button").addEventListener("click", () => {
   }
 });
 
+document.getElementById("skip-button").addEventListener("click", () => {
+  // ข้ามข้อนี้ (ปล่อยให้ answer = -1) แล้วไปข้อต่อไป
+  if (currentIndex < examQuestions.length - 1) {
+    currentIndex++;
+    renderQuestion();
+  } else {
+    // ข้อสุดท้าย ข้ามแล้วก็ส่ง
+    openSubmitConfirmModal();
+  }
+});
+
+document.getElementById("exit-button").addEventListener("click", () => {
+  openExitConfirmModal();
+});
+
 document.getElementById("next-button").addEventListener("click", () => {
   if (currentIndex < examQuestions.length - 1) {
     currentIndex++;
@@ -229,6 +247,12 @@ function openSubmitConfirmModal() {
   document.getElementById("confirm-submit-modal").classList.remove("hidden");
 }
 
+function openExitConfirmModal() {
+  const answeredCount = examAnswers.filter((a) => a !== -1).length;
+  document.getElementById("exit-answered-count").textContent = String(answeredCount);
+  document.getElementById("confirm-exit-modal").classList.remove("hidden");
+}
+
 document.getElementById("cancel-submit-btn").addEventListener("click", () => {
   document.getElementById("confirm-submit-modal").classList.add("hidden");
 });
@@ -236,6 +260,17 @@ document.getElementById("cancel-submit-btn").addEventListener("click", () => {
 document.getElementById("confirm-submit-btn").addEventListener("click", () => {
   document.getElementById("confirm-submit-modal").classList.add("hidden");
   submitExam();
+});
+
+document.getElementById("cancel-exit-btn").addEventListener("click", () => {
+  document.getElementById("confirm-exit-modal").classList.add("hidden");
+});
+
+document.getElementById("confirm-exit-btn").addEventListener("click", () => {
+  document.getElementById("confirm-exit-modal").classList.add("hidden");
+  clearInterval(examTimer);
+  sessionStorage.removeItem("examConfig");
+  window.location.href = "dashboard.html";
 });
 
 async function submitExam() {
@@ -259,7 +294,7 @@ async function submitExam() {
     window.location.href = `result.html?attemptId=${encodeURIComponent(attemptId)}`;
   } catch (err) {
     console.error("ส่งคำตอบไม่สำเร็จ:", err);
-    showToast("เกิดข้อผิดพลาดในการส่งคำตอบ กรุณาลองใหม่");
+    showToast("เกิดข้อผิดพลาดในการส่งคำตอบ กรุณาลองใหม่", "error");
   }
 }
 

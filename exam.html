@@ -3,9 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com; frame-src https://*.supabase.co;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://wefgreavazpfctayjnmp.supabase.co;">
   <title>กำลังทำข้อสอบ — เตรียมสอบ ก.พ.</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .exam-action-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .exam-action-bar .btn {
+      flex: 1;
+      min-width: 140px;
+    }
+  </style>
 </head>
 <body>
 
@@ -20,7 +34,7 @@
     <div class="card fade-up" style="padding:2rem;max-width:420px;text-align:center;">
       <div style="font-size:2.5rem;margin-bottom:0.75rem;">🗝️</div>
       <h2 class="mb-2">ไม่พบคำถามในคลัง</h2>
-      <p class="text-secondary text-sm mb-3">ขออภัย ขณะนี้ยังไม่มีคำถามเพียงพอสำหรับโหมดที่คุณเลือก กรุณาลองโหมดอื่นหรือติดต่อผู้ดูแลระบบ</p>
+      <p class="text-secondary text-sm mb-3">ขออภัย ขณะนี้ยังไม่มีคำถามเพียงพอสำหรับโหมดที่คุณเลือก</p>
       <a href="dashboard.html" class="btn btn-gold btn-full">กลับไปเลือกโหมดอื่น</a>
     </div>
   </div>
@@ -51,8 +65,10 @@
 
         <div id="options-container"></div>
 
-        <div class="flex justify-between mt-4">
-          <button id="prev-button" class="btn btn-ghost">← ข้อก่อนหน้า</button>
+        <div class="exam-action-bar">
+          <button id="prev-button" class="btn btn-ghost">← ก่อนหน้า</button>
+          <button id="skip-button" class="btn btn-outline">✋ ข้ามข้อ</button>
+          <button id="exit-button" class="btn btn-outline" style="border-color:#f87171;color:#f87171;">🚪 ออกจากสอบ</button>
           <button id="next-button" class="btn btn-gold">ข้อต่อไป →</button>
         </div>
       </div>
@@ -62,7 +78,7 @@
   <!-- Modal ยืนยันก่อนส่งคำตอบ -->
   <div id="confirm-submit-modal" class="hidden modal-overlay">
     <div class="modal-box">
-      <h3 class="modal-title">⚠️ ยืนยันการส่งคำตอบ</h3>
+      <h3 class="modal-title">✅ ยืนยันการส่งคำตอบ</h3>
       <p class="modal-desc">
         คุณตอบไปแล้ว <strong class="text-gold" id="answered-count"></strong> จาก
         <strong class="text-gold" id="modal-total-questions"></strong> ข้อ<br><br>
@@ -71,6 +87,23 @@
       <div class="modal-actions">
         <button id="cancel-submit-btn" class="btn btn-ghost">ยกเลิก</button>
         <button id="confirm-submit-btn" class="btn btn-gold">ยืนยันส่งคำตอบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ยืนยันก่อนออกจากการสอบ -->
+  <div id="confirm-exit-modal" class="hidden modal-overlay">
+    <div class="modal-box">
+      <h3 class="modal-title">🚪 ยืนยันออกจากการสอบ</h3>
+      <p class="modal-desc">
+        คุณตอบไปแล้ว <strong id="exit-answered-count"></strong> จาก
+        <strong id="exit-total-questions"></strong> ข้อ<br><br>
+        <strong style="color:#f87171;">⚠️ หากออกจากการสอบ ข้อที่คุณตอบแล้วจะไม่ถูกบันทึก</strong><br>
+        ยืนยันว่าต้องการออกจากการสอบหรือไม่?
+      </p>
+      <div class="modal-actions">
+        <button id="cancel-exit-btn" class="btn btn-ghost">ยกเลิก</button>
+        <button id="confirm-exit-btn" class="btn btn-outline" style="border-color:#f87171;color:#f87171;">ออกจากการสอบ</button>
       </div>
     </div>
   </div>
