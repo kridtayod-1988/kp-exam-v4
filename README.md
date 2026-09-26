@@ -8,7 +8,7 @@
 
 ## Supabase Project ที่ใช้งานอยู่
 
-- **Project name:** KPOR
+- **Project name:** kp-exam-v4
 - **Project ref:** `wefgreavazpfctayjnmp`
 - **Region:** `ap-southeast-1` (Singapore)
 - **Database:** Postgres 17, เปิดใช้ RLS ทุกตาราง, Security Advisor ผ่าน 0 warnings

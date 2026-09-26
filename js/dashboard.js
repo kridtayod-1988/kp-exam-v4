@@ -1,8 +1,7 @@
 // js/dashboard.js
+// ปรับ dashboard ให้เลือกโหมดแยกหมวดหมู่/ปีโดยตรง โดยไม่เลือกจำนวนข้อ
 
 let dashboardUser = null;
-let selectedCategoryCount = null;
-let selectedYearCount = null;
 
 (async function init() {
   try {
@@ -31,11 +30,14 @@ document.getElementById("logout-btn").addEventListener("click", signOutUser);
 
 async function loadSystemConfig() {
   try {
-    const { data, error } = await sb
-      .from("system_config")
-      .select("full_exam_question_count")
-      .eq("key", "public")
-      .single();
+    const { data, error } = await withRetry(
+      () => sb
+        .from("system_config")
+        .select("full_exam_question_count")
+        .eq("key", "public")
+        .single(),
+      { operationName: "loadSystemConfig" }
+    );
 
     if (error) throw error;
     const fullCount = data?.full_exam_question_count || 100;
@@ -51,11 +53,15 @@ async function loadSystemConfig() {
 async function loadCategories() {
   const select = document.getElementById("category-select");
   try {
-    const { data, error } = await sb
-      .from("categories")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
+    const { data, error } = await withRetry(
+      () => sb
+        .from("categories")
+        .select("id, name")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("sort_order", { ascending: true }),
+      { operationName: "loadCategories" }
+    );
 
     if (error) throw error;
 
@@ -79,11 +85,14 @@ async function loadCategories() {
 async function loadExamYears() {
   const select = document.getElementById("year-select");
   try {
-    const { data, error } = await sb
-      .from("exam_years")
-      .select("id, label")
-      .eq("is_active", true)
-      .order("year", { ascending: false });
+    const { data, error } = await withRetry(
+      () => sb
+        .from("exam_years")
+        .select("id, label")
+        .eq("is_active", true)
+        .order("year", { ascending: false }),
+      { operationName: "loadExamYears" }
+    );
 
     if (error) throw error;
 
@@ -104,66 +113,36 @@ async function loadExamYears() {
   }
 }
 
-// ----- ปุ่มเลือกจำนวนข้อ (หมวดหมู่) -----
-document.querySelectorAll(".count-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".count-btn").forEach((b) => {
-      b.classList.remove("active");
-    });
-    btn.classList.add("active");
-    selectedCategoryCount = parseInt(btn.dataset.count, 10);
-  });
-});
-
-// ----- ปุ่มเลือกจำนวนข้อ (ปี) -----
-document.querySelectorAll(".count-btn-year").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".count-btn-year").forEach((b) => {
-      b.classList.remove("active");
-    });
-    btn.classList.add("active");
-    selectedYearCount = parseInt(btn.dataset.count, 10);
-  });
-});
-
 // ----- เริ่มข้อสอบจริง 100 ข้อ -----
 document.getElementById("start-full-exam-btn").addEventListener("click", () => {
   sessionStorage.setItem("examConfig", JSON.stringify({ mode: "full100" }));
   window.location.href = "exam.html";
 });
 
-// ----- เริ่มข้อสอบแยกหมวดหมู่ -----
+// ----- เริ่มข้อสอบแยกหมวดหมู่ (ไม่เลือกจำนวน) -----
 document.getElementById("start-category-exam-btn").addEventListener("click", () => {
   const categoryId = document.getElementById("category-select").value;
   if (!categoryId) {
-    showToast("กรุณาเลือกหมวดหมู่ก่อน");
-    return;
-  }
-  if (!selectedCategoryCount) {
-    showToast("กรุณาเลือกจำนวนข้อก่อน (10/25/50 ข้อ)");
+    showToast("กรุณาเลือกหมวดหมู่ก่อน", "warning");
     return;
   }
   sessionStorage.setItem(
     "examConfig",
-    JSON.stringify({ mode: "category", categoryId, count: selectedCategoryCount })
+    JSON.stringify({ mode: "category", categoryId, count: 25 }) // ค่าตั้งต้น 25 ข้อ
   );
   window.location.href = "exam.html";
 });
 
-// ----- เริ่มข้อสอบแยกปี -----
+// ----- เริ่มข้อสอบแยกปี (ไม่เลือกจำนวน) -----
 document.getElementById("start-year-exam-btn").addEventListener("click", () => {
   const examYearId = document.getElementById("year-select").value;
   if (!examYearId) {
-    showToast("กรุณาเลือกปีข้อสอบก่อน");
-    return;
-  }
-  if (!selectedYearCount) {
-    showToast("กรุณาเลือกจำนวนข้อก่อน (10/25/50 ข้อ)");
+    showToast("กรุณาเลือกปีข้อสอบก่อน", "warning");
     return;
   }
   sessionStorage.setItem(
     "examConfig",
-    JSON.stringify({ mode: "year", examYearId, count: selectedYearCount })
+    JSON.stringify({ mode: "year", examYearId, count: 25 }) // ค่าตั้งต้น 25 ข้อ
   );
   window.location.href = "exam.html";
 });

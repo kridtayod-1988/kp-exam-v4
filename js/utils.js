@@ -1,6 +1,6 @@
 // js/utils.js
 // ฟังก์ชันช่วยเหลือกลางที่ใช้ทั่วทั้งแอป
-// กฎทอง: ข้อมูลจากใครก็ตามที่ไม่ใช่ตัวเราเอง (user, admin, AI) ถือว่าไม่น่าเชื่อถือเสมอ
+// กฎทอง: ข้อมูลจากใครก็ตามที่ไม่ใช่ตัวเราเอง (user, admin, AI) ถือว่าไม่น่าเชื่อถือ
 //        ต้อง escape/sanitize ก่อน render เป็น HTML ทุกครั้ง
 
 /**
@@ -75,17 +75,189 @@ function sampleArray(arr, n) {
   return result;
 }
 
+const TOAST_STYLE_ID = "kp-toast-styles";
+
+function ensureToastContainer() {
+  let container = document.getElementById("toast-container");
+  if (container) return container;
+
+  const styleTag = document.getElementById(TOAST_STYLE_ID);
+  if (!styleTag) {
+    const style = document.createElement("style");
+    style.id = TOAST_STYLE_ID;
+    style.textContent = `
+      #toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-width: min(90vw, 420px);
+      }
+      .toast {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        min-width: 260px;
+        max-width: 420px;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border-left: 4px solid transparent;
+        background: rgba(15, 23, 42, 0.97);
+        color: #f8fafc;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+        animation: toast-slide-in 0.22s ease-out;
+      }
+      .toast-success { border-left-color: #4ade80; }
+      .toast-error { border-left-color: #f87171; }
+      .toast-warning { border-left-color: #fbbf24; }
+      .toast-info { border-left-color: #60a5fa; }
+      .toast-icon {
+        font-size: 1.1rem;
+        line-height: 1.25;
+        flex-shrink: 0;
+      }
+      .toast-message {
+        flex: 1;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        word-break: break-word;
+      }
+      .toast-close {
+        border: none;
+        background: transparent;
+        color: rgba(255,255,255,0.75);
+        font-size: 1.1rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+      }
+      @keyframes toast-slide-in {
+        from { opacity: 0; transform: translateX(16px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  container = document.createElement("div");
+  container.id = "toast-container";
+  document.body.appendChild(container);
+  return container;
+}
+
 /**
  * แสดง toast/alert แบบง่าย (สามารถปรับเป็น UI component ที่สวยขึ้นได้ทีหลัง)
  */
-function showToast(message, type = "info") {
-  // เวอร์ชันพื้นฐาน ใช้ alert ไปก่อน — UI จริงจะแทนด้วย toast component
-  alert(message);
+function showToast(message, type = "info", duration = 3500) {
+  const container = ensureToastContainer();
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+
+  const iconMap = {
+    success: "✓",
+    error: "✕",
+    warning: "⚠",
+    info: "ℹ"
+  };
+
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  icon.textContent = iconMap[type] || iconMap.info;
+
+  const content = document.createElement("span");
+  content.className = "toast-message";
+  content.textContent = String(message || "");
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close";
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Close notification");
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => toast.remove());
+
+  toast.appendChild(icon);
+  toast.appendChild(content);
+  toast.appendChild(closeBtn);
+  container.appendChild(toast);
+
+  if (duration > 0) {
+    window.setTimeout(() => {
+      toast.remove();
+    }, duration);
+  }
+}
+
+const RETRY_DEFAULTS = {
+  maxAttempts: 3,
+  initialDelayMs: 600,
+  maxDelayMs: 4000,
+  backoffMultiplier: 2
+};
+
+function isRetryableError(error) {
+  if (!error) return false;
+
+  const message = (error.message || "").toLowerCase();
+  const status = Number(error.status || 0);
+
+  if (message.includes("failed to fetch")) return true;
+  if (message.includes("network request failed")) return true;
+  if (message.includes("timeout")) return true;
+  if (message.includes("connection")) return true;
+  if (message.includes("temporarily unavailable")) return true;
+  if (status === 429) return true;
+  if (status >= 500 && status < 600) return true;
+
+  return false;
+}
+
+async function withRetry(operation, options = {}) {
+  const config = {
+    ...RETRY_DEFAULTS,
+    ...options
+  };
+
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt < config.maxAttempts) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (!config.shouldRetry && !isRetryableError(error)) {
+        throw error;
+      }
+
+      if (config.shouldRetry && !config.shouldRetry(error)) {
+        throw error;
+      }
+
+      attempt += 1;
+      if (attempt >= config.maxAttempts) {
+        break;
+      }
+
+      const delayMs = Math.min(
+        config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt - 1),
+        config.maxDelayMs
+      );
+
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError;
 }
 
 /**
  * ===== Mapping functions: Postgres row (snake_case) → รูปแบบที่ UI เดิมคาดหวัง (camelCase) =====
- * ใช้ร่วมกันทุกไฟล์ที่ดึงข้อมูลจาก Supabase เพื่อให้โค้ด UI/component ไม่ต้องแก้ตามชื่อ column จริง
+ * ใช้ร่วมกันทุกไฟล์ที่ดึงข้อมูลจาก Supabase เพื่อให้โค้ด UI/component ไม่ต้องแก้ตาม old schema
  */
 
 function mapProfileRow(row) {
