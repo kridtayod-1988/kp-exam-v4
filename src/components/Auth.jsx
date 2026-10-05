@@ -10,6 +10,10 @@ export default function Auth({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStatus, setForgotStatus] = useState('');
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -21,7 +25,6 @@ export default function Auth({ onLoginSuccess }) {
           email,
           password,
         });
-
         if (error) throw error;
 
         if (data?.user) {
@@ -40,13 +43,32 @@ export default function Auth({ onLoginSuccess }) {
 
         if (error) throw error;
 
-        alert('สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันตัวตน');
+        if (data?.user) {
+          await supabase.from('profiles').upsert([{ id: data.user.id, full_name: fullName }]);
+        }
+
+        alert('สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตน');
         setIsLoginView(true);
       }
     } catch (error) {
       setErrorMsg(error?.message || 'เกิดข้อผิดพลาดในการดำเนินการ');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotStatus('');
+
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-callback`,
+      });
+      if (error) throw error;
+      setForgotStatus('ส่งลิงก์รีเซ็ตรหัสผ่านสำเร็จ โปรดตรวจสอบอีเมล');
+    } catch (err) {
+      setForgotStatus(err?.message || 'ส่งลิงก์รีเซ็ตรหัสผ่านไม่ได้');
     }
   };
 
@@ -109,46 +131,65 @@ export default function Auth({ onLoginSuccess }) {
             />
           </div>
 
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={() => setIsForgotOpen(true)}
+              className="text-[#F2C744] hover:underline"
+            >
+              ลืมรหัสผ่าน?
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsLoginView((prev) => !prev);
+                setErrorMsg('');
+              }}
+              className="text-gray-400 hover:underline"
+            >
+              {isLoginView ? 'สมัครสมาชิก' : 'กลับเข้าสู่ระบบ'}
+            </button>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[#C8922A] to-[#F2C744] hover:from-[#d19b33] hover:to-[#f5ce55] text-black font-bold p-3 rounded-lg mt-6 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-[#C8922A] to-[#F2C744] text-black font-bold p-3 rounded-lg mt-4 disabled:opacity-50"
           >
             {loading ? 'กำลังประมวลผล...' : isLoginView ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
           </button>
         </form>
 
-        <div className="text-center mt-6 text-sm text-gray-500 border-t border-[#222] pt-6">
-          {isLoginView ? (
-            <p>
-              ยังไม่มีบัญชีใช่หรือไม่?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLoginView(false);
-                  setErrorMsg('');
-                }}
-                className="text-[#F2C744] hover:underline font-medium"
-              >
-                สมัครสมาชิก
-              </button>
-            </p>
-          ) : (
-            <p>
-              มีบัญชีอยู่แล้วใช่หรือไม่?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLoginView(true);
-                  setErrorMsg('');
-                }}
-                className="text-[#F2C744] hover:underline font-medium"
-              >
-                เข้าสู่ระบบ
-              </button>
-            </p>
-          )}
-        </div>
+        {isForgotOpen && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-[#121212] border border-[#222] rounded-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-bold mb-3">รีเซ็ตรหัสผ่าน</h3>
+              <p className="text-sm text-gray-400 mb-4">กรอกอีเมลของคุณ ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านให้</p>
+
+              <form onSubmit={handleForgotPassword} className="space-y-3">
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full bg-[#1A1A1A] border border-[#333] p-3 rounded-lg text-white"
+                  placeholder="email@example.com"
+                />
+                {forgotStatus && <div className="text-sm text-gray-300">{forgotStatus}</div>}
+
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 bg-[#C8922A] text-black font-bold p-3 rounded-lg">
+                    ส่งลิงก์รีเซ็ต
+                  </button>
+                  <button type="button" onClick={() => setIsForgotOpen(false)} className="flex-1 bg-[#1A1A1A] border border-[#333] p-3 rounded-lg">
+                    ยกเลิก
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
