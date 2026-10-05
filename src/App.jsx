@@ -1,35 +1,67 @@
 import React, { useEffect, useState } from 'react';
 import Auth from './components/Auth';
 import Dashboard from './components/ExamDashboard';
+import AdminPanel from './components/AdminPanel';
 import { supabase } from './supabaseClient';
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+
+      if (data.session?.user?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+
+        setProfile(profileData || null);
+      }
+
       setLoading(false);
     };
 
     init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
+
+      if (newSession?.user?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', newSession.user.id)
+          .single();
+
+        setProfile(profileData || null);
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => listener?.subscription.unsubscribe();
   }, []);
 
-  const handleLoginSuccess = (user) => {
-    console.log('login success', user);
+  const handleLoginSuccess = async (user) => {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    setProfile(profileData || null);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
+    setProfile(null);
   };
 
   if (loading) {
@@ -43,6 +75,8 @@ export default function App() {
   if (!session) {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
+
+  const isAdmin = profile?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
@@ -62,9 +96,15 @@ export default function App() {
             <div className="bg-[#1A1A1A] border border-[#2B2B2B] px-3 py-1.5 rounded-full flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-xs text-gray-300">
-                {session.user?.user_metadata?.full_name || session.user?.email}
+                {profile?.full_name || session.user?.user_metadata?.full_name || session.user?.email}
               </span>
             </div>
+
+            {isAdmin && (
+              <span className="bg-[#F2C744]/10 text-[#F2C744] border border-[#F2C744]/30 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase">
+                Admin
+              </span>
+            )}
 
             <button onClick={handleLogout} className="bg-[#1A1A1A] border border-[#333] px-3 py-1.5 rounded-lg text-sm hover:bg-[#222]">
               ออกจากระบบ
@@ -74,7 +114,8 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 pt-8 pb-12">
-        <Dashboard />
+        {isAdmin && <AdminPanel />}
+        {!isAdmin && <Dashboard />}
       </main>
     </div>
   );
