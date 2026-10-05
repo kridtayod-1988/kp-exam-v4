@@ -1,196 +1,121 @@
-import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import React, { useEffect, useState } from 'react';
+import Auth from './components/Auth';
+import Dashboard from './components/ExamDashboard';
+import AdminPanel from './components/AdminPanel';
+import { supabase } from './supabaseClient';
 
-export default function Auth({ onLoginSuccess }) {
-  const [isLoginView, setIsLoginView] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
 
-  const [isForgotOpen, setIsForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotStatus, setForgotStatus] = useState('');
+      if (data.session?.user?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
-
-    try {
-      if (isLoginView) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-
-        if (data?.user) {
-          onLoginSuccess?.(data.user);
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            },
-          },
-        });
-
-        if (error) throw error;
-
-        if (data?.user) {
-          await supabase.from('profiles').upsert([{ id: data.user.id, full_name: fullName }]);
-        }
-
-        alert('สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตน');
-        setIsLoginView(true);
+        setProfile(profileData || null);
       }
-    } catch (error) {
-      setErrorMsg(error?.message || 'เกิดข้อผิดพลาดในการดำเนินการ');
-    } finally {
+
       setLoading(false);
-    }
+    };
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setSession(newSession);
+
+      if (newSession?.user?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', newSession.user.id)
+          .single();
+
+        setProfile(profileData || null);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => listener?.subscription.unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = async (user) => {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    setProfile(profileData || null);
   };
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setForgotStatus('');
-
-    try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-callback`,
-      });
-      if (error) throw error;
-      setForgotStatus('ส่งลิงก์รีเซ็ตรหัสผ่านสำเร็จ โปรดตรวจสอบอีเมล');
-    } catch (err) {
-      setForgotStatus(err?.message || 'ส่งลิงก์รีเซ็ตรหัสผ่านไม่ได้');
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0D0D0D] text-white">
+        <span className="text-[#F2C744]">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const isAdmin = profile?.role === 'admin';
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#0D0D0D] text-white">
-      <div className="bg-[#141414] border border-[#252525] p-8 rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333] mb-4">
-            <span className="text-2xl">🎓</span>
-          </div>
-          <h1 className="text-2xl font-bold text-[#F2C744]">Smart Exam Pro</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {isLoginView ? 'เข้าสู่ระบบเพื่อทำข้อสอบ' : 'สร้างบัญชีใหม่เพื่อเริ่มต้นเรียนรู้'}
-          </p>
-        </div>
-
-        {errorMsg && (
-          <div className="bg-red-900/30 border border-red-800 text-red-400 p-3 rounded-lg text-sm mb-4 text-center">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleAuth} className="space-y-4">
-          {!isLoginView && (
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
+      <header className="border-b border-[#1F1F1F] bg-[#121212]/90 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#C8922A] to-[#F2C744] flex items-center justify-center text-black font-extrabold text-xl">
+              🎓
+            </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">ชื่อ - นามสกุล</label>
-              <input
-                required
-                type="text"
-                placeholder="สมชาย ใจดี"
-                className="w-full bg-[#1A1A1A] border border-[#333] p-3 rounded-lg text-white outline-none focus:border-[#F2C744]"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">อีเมล</label>
-            <input
-              required
-              type="email"
-              placeholder="email@example.com"
-              className="w-full bg-[#1A1A1A] border border-[#333] p-3 rounded-lg text-white outline-none focus:border-[#F2C744]"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">รหัสผ่าน</label>
-            <input
-              required
-              type="password"
-              placeholder="••••••••"
-              minLength={6}
-              className="w-full bg-[#1A1A1A] border border-[#333] p-3 rounded-lg text-white outline-none focus:border-[#F2C744]"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <button
-              type="button"
-              onClick={() => setIsForgotOpen(true)}
-              className="text-[#F2C744] hover:underline"
-            >
-              ลืมรหัสผ่าน?
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsLoginView((prev) => !prev);
-                setErrorMsg('');
-              }}
-              className="text-gray-400 hover:underline"
-            >
-              {isLoginView ? 'สมัครสมาชิก' : 'กลับเข้าสู่ระบบ'}
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-[#C8922A] to-[#F2C744] text-black font-bold p-3 rounded-lg mt-4 disabled:opacity-50"
-          >
-            {loading ? 'กำลังประมวลผล...' : isLoginView ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
-          </button>
-        </form>
-
-        {isForgotOpen && (
-          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#121212] border border-[#222] rounded-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-bold mb-3">รีเซ็ตรหัสผ่าน</h3>
-              <p className="text-sm text-gray-400 mb-4">กรอกอีเมลของคุณ ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านให้</p>
-
-              <form onSubmit={handleForgotPassword} className="space-y-3">
-                <input
-                  type="email"
-                  required
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  className="w-full bg-[#1A1A1A] border border-[#333] p-3 rounded-lg text-white"
-                  placeholder="email@example.com"
-                />
-                {forgotStatus && <div className="text-sm text-gray-300">{forgotStatus}</div>}
-
-                <div className="flex gap-2">
-                  <button type="submit" className="flex-1 bg-[#C8922A] text-black font-bold p-3 rounded-lg">
-                    ส่งลิงก์รีเซ็ต
-                  </button>
-                  <button type="button" onClick={() => setIsForgotOpen(false)} className="flex-1 bg-[#1A1A1A] border border-[#333] p-3 rounded-lg">
-                    ยกเลิก
-                  </button>
-                </div>
-              </form>
+              <h1 className="font-bold text-white tracking-wide text-lg leading-none">Smart Exam Pro</h1>
+              <span className="text-xs text-[#F2C744] font-medium">ก.พ. Online Testing & AI Tutor</span>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-3">
+            <div className="bg-[#1A1A1A] border border-[#2B2B2B] px-3 py-1.5 rounded-full flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-xs text-gray-300">
+                {profile?.full_name || session.user?.user_metadata?.full_name || session.user?.email}
+              </span>
+            </div>
+
+            {isAdmin && (
+              <span className="bg-[#F2C744]/10 text-[#F2C744] border border-[#F2C744]/30 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase">
+                Admin
+              </span>
+            )}
+
+            <button onClick={handleLogout} className="bg-[#1A1A1A] border border-[#333] px-3 py-1.5 rounded-lg text-sm hover:bg-[#222]">
+              ออกจากระบบ
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 pt-8 pb-12">
+        {isAdmin ? <AdminPanel /> : <Dashboard />}
+      </main>
     </div>
   );
 }
