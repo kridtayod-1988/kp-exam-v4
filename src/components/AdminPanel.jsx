@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { EXAM_SETS, RAW_QUESTION_BANK } from '../data/examData';
 
@@ -23,6 +23,8 @@ export default function AdminPanel() {
     full_exam_question_count: 30,
     full_exam_time_minutes: 180,
   });
+
+  const fileInputRef = useRef(null);
 
   // Helpers for local storage
   function loadLocalQuestions() {
@@ -243,11 +245,98 @@ export default function AdminPanel() {
     setForm({ category: '', sub: '', text: '', options: ['', '', '', ''], correct: 0, explanation: '' });
   };
 
+  // Export / Import handlers
+  const exportData = () => {
+    const payload = {
+      meta: { exported_at: new Date().toISOString(), source: 'smart-exam-local' },
+      config,
+      questions
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smart-exam-export-${new Date().toISOString().slice(0,19).replace(/[:T]/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileChange = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        // Basic validation
+        if (!parsed || typeof parsed !== 'object') return alert('ไฟล์ไม่ถูกต้อง');
+        if (!parsed.questions || !Array.isArray(parsed.questions)) return alert('ไฟล์ต้องมีฟิลด์ questions (array)');
+        // ask user: replace or merge
+        const mode = window.confirm('ต้องการแทนที่ข้อมูลเดิมทั้งหมดหรือไม่? (OK = แทนที่, Cancel = ผสาน)') ? 'replace' : 'merge';
+        if (mode === 'replace') {
+          saveLocalQuestions(parsed.questions);
+          saveLocalConfig(parsed.config || { full_exam_question_count: 30, full_exam_time_minutes: 180 });
+          setQuestions(parsed.questions);
+          setConfig(parsed.config || { full_exam_question_count: 30, full_exam_time_minutes: 180 });
+          alert('นำเข้าไฟล์เรียบร้อย (แทนที่ข้อมูลเดิม)');
+        } else {
+          // merge: prepend imported questions and dedupe by text
+          const existing = loadLocalQuestions();
+          const combined = [...parsed.questions, ...existing];
+          // dedupe by text
+          const map = new Map();
+          combined.forEach(q => {
+            const key = (q.text || '').trim();
+            if (!map.has(key)) map.set(key, { ...q, id: q.id || `local-q-${Date.now()}-${Math.random()}` });
+          });
+          const merged = Array.from(map.values());
+          saveLocalQuestions(merged);
+          saveLocalConfig({ ...loadLocalConfig(), ...(parsed.config || {}) });
+          setQuestions(merged);
+          setConfig(prev => ({ ...prev, ...(parsed.config || {}) }));
+          alert('นำเข้าข้อมูลและผสานเรียบร้อย');
+        }
+      } catch (err) {
+        console.error('import parse error', err);
+        alert('เกิดข้อผิดพลาดในการอ่านไฟล์');
+      }
+    };
+    reader.readAsText(f);
+    // clear input
+    e.target.value = null;
+  };
+
+  const triggerImport = () => fileInputRef.current?.click();
+
   if (loading) return <div className="text-white p-6">Loading admin...</div>;
 
   return (
     <div className="space-y-6 p-4">
       <h2 className="text-2xl font-bold text-[#F2C744]">Admin Panel (Local)</h2>
+
+      <section className="bg-[#141414] border border-[#222] rounded-xl p-4">
+        <h3 className="text-lg font-bold mb-3">Export / Import</h3>
+
+        <div className="flex gap-3 items-center">
+          <button onClick={exportData} className="px-3 py-2 bg-emerald-600 text-black rounded font-bold">Export JSON</button>
+
+          <input ref={fileInputRef} type="file" accept="application/json" onChange={handleFileChange} style={{ display: 'none' }} />
+          <button onClick={triggerImport} className="px-3 py-2 bg-yellow-500 text-black rounded font-bold">Import JSON</button>
+
+          <button onClick={() => {
+            if (!confirm('ลบคำถามท้องถิ่นทั้งหมดจริงหรือไม่?')) return;
+            localStorage.removeItem(LOCAL_QUESTIONS_KEY);
+            const reinit = loadLocalQuestions();
+            setQuestions(reinit);
+            alert('ลบและรีเซ็ตคำถามท้องถิ่นแล้ว');
+          }} className="px-3 py-2 bg-red-600 text-white rounded font-bold">Reset Local Questions</button>
+        </div>
+
+        <div className="mt-3 text-sm text-gray-400">คุณสามารถ Export ข้อมูลคำถามและการตั้งค่าเป็นไฟล์ JSON และนำเข้าได้ที่นี่</div>
+      </section>
 
       <section className="bg-[#141414] border border-[#222] rounded-xl p-4">
         <h3 className="text-lg font-bold mb-3">System Config (Local)</h3>
