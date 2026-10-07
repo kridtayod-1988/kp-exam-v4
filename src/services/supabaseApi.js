@@ -3,6 +3,7 @@ import { EXAM_SETS, RAW_QUESTION_BANK } from '../data/examData';
 
 // Toggle Supabase usage via Vite env var: VITE_USE_SUPABASE=true|false
 const USE_SUPABASE = (import.meta.env.VITE_USE_SUPABASE || 'true').toLowerCase() === 'true';
+const LOCAL_ATTEMPTS_KEY = 'smart_exam_local_attempts';
 
 export async function fetchExamSets() {
   if (!USE_SUPABASE) {
@@ -69,20 +70,51 @@ export async function fetchQuestionsForExam(exam) {
 }
 
 export async function saveAttempt({ userId, exam, questions, answers, scoreResult }) {
-  // If supabase disabled => skip writing and return a mock attempt object
+  // If supabase disabled => skip writing and save locally in browser storage
   if (!USE_SUPABASE) {
-    console.info('[saveAttempt] Supabase disabled — skipping DB write');
-    return {
-      id: `local-${Date.now()}`,
-      user_id: userId,
-      exam_set_id: exam?.id || null,
-      started_at: new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-      score: scoreResult.score,
-      max_score: scoreResult.total,
-      passed: scoreResult.passed,
-      meta: { note: 'local-simulated' }
-    };
+    try {
+      const existingRaw = localStorage.getItem(LOCAL_ATTEMPTS_KEY);
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+      const record = {
+        id: `local-${Date.now()}`,
+        user_id: userId,
+        exam_set_id: exam?.id || null,
+        exam_name: exam?.name || 'Unknown',
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        score: scoreResult.score,
+        max_score: scoreResult.total,
+        passed: scoreResult.passed,
+        percentage: scoreResult.percentage,
+        answers: questions.map((q, idx) => ({
+          question_id: q.id,
+          selected: answers[idx],
+          correct: answers[idx] === q.correct,
+          text: q.text,
+        })),
+        createdAt: new Date().toISOString(),
+        note: 'local-only-mode'
+      };
+
+      localStorage.setItem(LOCAL_ATTEMPTS_KEY, JSON.stringify([...existing, record]));
+      return record;
+    } catch (err) {
+      console.warn('[saveAttempt] localStorage unavailable, fallback to mock object', err?.message || err);
+      return {
+        id: `local-${Date.now()}`,
+        user_id: userId,
+        exam_set_id: exam?.id || null,
+        exam_name: exam?.name || 'Unknown',
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        score: scoreResult.score,
+        max_score: scoreResult.total,
+        passed: scoreResult.passed,
+        percentage: scoreResult.percentage,
+        note: 'local-only-mode-fallback'
+      };
+    }
   }
 
   try {
