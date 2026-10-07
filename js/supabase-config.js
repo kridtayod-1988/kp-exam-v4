@@ -12,7 +12,5 @@
 const SUPABASE_URL = "https://wefgreavazpfctayjnmp.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_91tqJTiGiTOvbrO7To4frQ_eEhivQyk";
 
-VITE_USE_SUPABASE=false
-
 // เริ่มต้น Supabase client (ใช้ตัวแปร global ชื่อ `supabase` จาก CDN script ที่โหลดไว้ก่อนหน้าไฟล์นี้)
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
