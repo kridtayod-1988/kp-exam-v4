@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src https://*.supabase.co;">
+  <title>ฝึกตามหมวดหมู่ — เตรียมสอบ ก.พ.</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ═══ Header ═══ -->
+  <header class="exam-header">
+    <div class="exam-header-actions" style="flex:1;">
+      <button id="back-btn" class="btn btn-ghost btn-sm">← ออก</button>
+      <h1 id="practice-category-title" class="font-display" style="font-size:1rem;margin:0;flex:1;text-align:center;"></h1>
+      <div class="exam-timer" id="question-counter">0 / 0</div>
+    </div>
+  </header>
+
+  <div class="exam-progress-bar">
+    <div id="practice-progress-fill" class="exam-progress-fill" style="width:0%;"></div>
+  </div>
+
+  <!-- ═══ Loading ═══ -->
+  <div id="loading-screen" class="spinner-wrap">
+    <div class="spinner"></div>
+    <p class="text-secondary">กำลังโหลดข้อสอบ...</p>
+  </div>
+
+  <!-- ═══ Practice Screen ═══ -->
+  <div id="practice-screen" class="hidden">
+    <main class="container-md" style="padding:2rem 1.25rem 3rem;">
+      <div class="card fade-up" style="padding:1.75rem;">
+
+        <!-- Context (condition/passage/table) -->
+        <div id="context-container"></div>
+
+        <!-- Question Number -->
+        <div class="question-number-badge">
+          ⚔️ ข้อที่ <span id="current-number">1</span> / <span id="total-count">0</span>
+        </div>
+
+        <!-- Question Text -->
+        <div id="question-text" class="question-text"></div>
+
+        <!-- Options -->
+        <div id="options-container"></div>
+
+        <!-- Feedback (hidden ก่อนตอบ) -->
+        <div id="feedback-container" class="hidden"></div>
+
+        <!-- Actions -->
+        <div id="action-container" class="exam-action-bar" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border-subtle);">
+          <button id="check-btn" class="btn btn-gold btn-full">✓ ตรวจคำตอบ</button>
+          <button id="skip-btn" class="btn btn-outline" style="flex:1;">ข้ามข้อ →</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ Summary Screen ═══ -->
+  <div id="summary-screen" class="hidden">
+    <main class="container-md" style="padding:2rem 1.25rem 3rem;">
+      <div class="card fade-up" style="padding:2rem;text-align:center;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🎉</div>
+        <h1 class="mb-2">ฝึกเสร็จแล้ว!</h1>
+        <p class="text-secondary mb-4">ผลการฝึกครั้งนี้</p>
+
+        <div class="grid-3" style="margin-bottom:1.5rem;">
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <p id="summary-correct" class="stat-value">0</p>
+            <p class="stat-label">ตอบถูก</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">❌</div>
+            <p id="summary-wrong" class="stat-value">0</p>
+            <p class="stat-label">ตอบผิด</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👑</div>
+            <p id="summary-score" class="stat-value">0%</p>
+            <p class="stat-label">คะแนน</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2" style="flex-wrap:wrap;">
+          <a href="dashboard.html" class="btn btn-ghost" style="flex:1;">← กลับหน้าหลัก</a>
+          <button id="restart-btn" class="btn btn-gold" style="flex:1;">🔄 ฝึกชุดใหม่</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/practice.js"></script>
+</body>
+</html>
