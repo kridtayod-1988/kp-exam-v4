@@ -1,249 +1,263 @@
-// ═════════════ scripts/classify-questions.mjs ═════════════
-// สคริปต์จำแนกข้อสอบ 100 ข้อเดิมเข้า Taxonomy
-//
-// การใช้งาน:
-//   npm i @supabase/supabase-js
-//   export SUPABASE_URL="https://wefgreavazpfctayjnmp.supabase.co"
-//   export SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlZmdyZWF2YXpwZmN0YXlqbm1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwOTk1MjMsImV4cCI6MjEwNTY3NTUyM30.XcBAvQ2z66STZj31NlwZyjB7vk4ozax3yg58t6_c1eI"        # ห้าม commit ลง git
-//
-//   ตรวจสอบก่อน (dry-run, ไม่เขียนฐานข้อมูล):
-//     node scripts/classify-questions.mjs --source=db --report
-//   จำแนกจากไฟล์ JSON แล้วบันทึกผลลง DB:
-//     node scripts/classify-questions.mjs --source=data/questions.json --apply
-//
-// ผลลัพธ์: data/questions.classified.json + data/classification-report.md
+// scripts/classify-questions.mjs
+
+// ใช้:  node scripts/classify-questions.mjs --in data/questions.json --dry
+
+//       node scripts/classify-questions.mjs --in data/questions.json --apply
+
+//       เพิ่ม --llm เพื่อให้ AI ช่วยข้อที่ confidence ต่ำ
 
 import fs from 'node:fs/promises';
-import path from 'node:path';
+
 import { createClient } from '@supabase/supabase-js';
-import { TOPICS, SUBJECTS, DIFFICULTY, BLOOM } from './taxonomy.js';
 
-/* ───────── 1. Argument parsing ───────── */
-const args = Object.fromEntries(
-  process.argv.slice(2).map(a => {
-    const [k, v] = a.replace(/^--/, '').split('=');
-    return [k, v ?? true];
-  })
-);
-const SOURCE     = args.source ?? 'db';
-const APPLY      = Boolean(args.apply);
-const THRESHOLD  = Number(args.threshold ?? 0.45);
-const OUT_DIR    = args.out ?? 'data';
+import { TAXONOMY, RULES } from './taxonomy.mjs';
 
-/* ───────── 2. Text normalisation ─────────
-   ตัดวรรณยุกต์ซ้ำ/ช่องว่างเกิน และแปลงเป็น lowercase
-   เพื่อให้การจับคู่คำสำคัญ (lexical matching) เสถียร            */
-const normalize = (s = '') =>
-  String(s)
-    .toLowerCase()
-    .replace(/\u200b/g, '')
-    .replace(/[“”"’']/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
 
-const buildHaystack = q => normalize(
-  [q.question_text, ...(Array.isArray(q.choices)
-      ? q.choices.map(c => (typeof c === 'string' ? c : c?.text ?? ''))
-      : Object.values(q.choices ?? {})),
-   q.explanation].join(' | ')
-);
+const arg = (k, d = null) => {
 
-/* ───────── 3. Scoring engine ───────── */
-const W_STRONG = 2.5;
-const W_NORMAL = 1.0;
+  const i = process.argv.indexOf(k);
 
-function countHits(hay, term) {
-  const t = normalize(term);
-  if (!t) return 0;
-  // ภาษาไทยไม่มีเว้นวรรคระหว่างคำ จึงใช้ substring matching
-  let n = 0, i = 0;
-  while ((i = hay.indexOf(t, i)) !== -1) { n++; i += t.length; }
-  return n;
-}
+  return i > -1 ? (process.argv[i + 1]?.startsWith('--') ? true : process.argv[i + 1]) : d;
 
-function scoreTopics(hay) {
-  const scores = {};
-  for (const [key, def] of Object.entries(TOPICS)) {
-    let s = 0;
-    for (const t of def.strong   ?? []) s += countHits(hay, t) * W_STRONG;
-    for (const t of def.keywords ?? []) s += countHits(hay, t) * W_NORMAL;
-    if (s > 0) scores[key] = s;
+};
+
+const IN = arg('--in', 'data/questions.json');
+
+const APPLY = process.argv.includes('--apply');
+
+const USE_LLM = process.argv.includes('--llm');
+
+const THRESHOLD = Number(arg('--threshold', 0.45));
+
+
+const byCode = Object.fromEntries(TAXONOMY.map(t => [t.code, t]));
+
+const ancestors = code => {
+
+  const out = []; let c = byCode[code];
+
+  while (c) { out.unshift(c.code); c = c.parent ? byCode[c.parent] : null; }
+
+  return out;
+
+};
+
+
+/* ---------- 1) กฎ keyword + น้ำหนัก ---------- */
+
+function ruleClassify(q) {
+
+  const text = [q.question_text, ...(q.choices || []).map(c => c.text || c)].join('\n');
+
+  const score = {};
+
+  const hits = {};
+
+  for (const [re, code, w] of RULES) {
+
+    const m = text.match(re);
+
+    if (!m) continue;
+
+    score[code] = (score[code] || 0) + w;
+
+    (hits[code] ||= []).push(m[0].slice(0, 30));
+
   }
-  return scores;
+
+  const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
+
+  if (!ranked.length) return { code: null, confidence: 0, hits: [] };
+
+  const total = ranked.reduce((s, [, v]) => s + v, 0);
+
+  const [code, top] = ranked[0];
+
+  const margin = ranked[1] ? (top - ranked[1][1]) / top : 1;
+
+  const confidence = Math.min(1, (top / total) * 0.7 + margin * 0.3);
+
+  return { code, confidence: +confidence.toFixed(2), hits: hits[code], runnerUp: ranked[1]?.[0] ?? null };
+
 }
 
-/* ───────── 4. Heuristic: ภาษาอังกฤษ ─────────
-   ถ้าสัดส่วนอักขระละติน > 60% ให้ bias ไปยัง subject = english */
-function latinRatio(text = '') {
-  const clean = text.replace(/[\s\d\p{P}]/gu, '');
-  if (!clean.length) return 0;
-  const latin = (clean.match(/[a-z]/gi) ?? []).length;
-  return latin / clean.length;
+
+/* ---------- 2) ประมาณความยาก ---------- */
+
+function estimateDifficulty(q) {
+
+  const t = q.question_text || '';
+
+  const len = t.length;
+
+  const numeric = (t.match(/\d/g) || []).length;
+
+  const multiStep = /แล้ว|จากนั้น|ถ้า.*และ|หากว่า/.test(t);
+
+  let s = 0;
+
+  if (len > 400) s += 2; else if (len > 180) s += 1;
+
+  if (numeric > 12) s += 1;
+
+  if (multiStep) s += 1;
+
+  if (/เงื่อนไขสัญลักษณ์|ละเมิด|คำสั่งทางปกครอง/.test(t)) s += 1;
+
+  return s >= 3 ? 'hard' : s >= 1 ? 'medium' : 'easy';
+
 }
 
-/* ───────── 5. Heuristic: ความยาก (difficulty) ─────────
-   พิจารณาจาก (ก) ความยาวโจทย์ (cognitive load)
-              (ข) จำนวนตัวเลข/ตัวดำเนินการ
-              (ค) การมีหลายเงื่อนไขซ้อน                        */
-function inferDifficulty(q, hay) {
-  const len   = (q.question_text ?? '').length;
-  const nums  = (hay.match(/\d+/g) ?? []).length;
-  const multi = /(ข้อสรุปที่ 2|และ|แต่|เว้นแต่|ยกเว้น|มากที่สุด|น้อยที่สุด)/.test(hay);
-  let score = 0;
-  if (len > 260) score += 2; else if (len > 120) score += 1;
-  if (nums > 6) score += 2;  else if (nums > 2)  score += 1;
-  if (multi) score += 1;
-  return score >= 4 ? 'hard' : score >= 2 ? 'medium' : 'easy';
+
+/* ---------- 3) LLM fallback (เฉพาะข้อ confidence ต่ำ) ---------- */
+
+async function llmClassify(batch) {
+
+  const key = process.env.GEMINI_API_KEY;
+
+  if (!key) { console.warn('⚠️  ไม่มี GEMINI_API_KEY — ข้าม LLM'); return {}; }
+
+  const labels = TAXONOMY.filter(t => t.level >= 2).map(t => `${t.code} = ${t.th}`).join('\n');
+
+  const prompt = `คุณคือผู้เชี่ยวชาญข้อสอบ ก.พ. จำแนกข้อสอบแต่ละข้อเข้า code ที่ตรงที่สุด
+
+รายการ code:
+
+${labels}
+
+
+ตอบเป็น JSON array เท่านั้น: [{"id":<id>,"code":"<CODE>","confidence":0-1,"reason":"สั้นๆ"}]
+
+
+ข้อสอบ:
+
+${batch.map(q => `#${q.id}: ${q.question_text.slice(0, 500)}`).join('\n---\n')}`;
+
+
+  const res = await fetch(
+
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
+
+        generationConfig: { temperature: 0, responseMimeType: 'application/json' } }) });
+
+  const json = await res.json();
+
+  const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
+
+  try { return Object.fromEntries(JSON.parse(raw).map(r => [r.id, r])); }
+
+  catch { console.warn('⚠️  parse LLM ไม่สำเร็จ'); return {}; }
+
 }
 
-/* ───────── 6. Heuristic: Bloom level ───────── */
-const BLOOM_RULES = [
-  { level: 'analyze',    re: /(วิเคราะห์|สรุปได้ว่า|เหตุผล|สมเหตุสมผล|เปรียบเทียบ|infer|analy[sz])/ },
-  { level: 'apply',      re: /(คำนวณ|จงหา|เท่าใด|กี่|ร้อยละ|calculate|solve)/ },
-  { level: 'understand', re: /(ใจความสำคัญ|หมายความว่า|ตีความ|อธิบาย|main idea|meaning)/ },
-  { level: 'remember',   re: /(ข้อใดคือ|ตามพระราชบัญญัติ|กำหนดไว้|มีกี่|ผู้ใดเป็น)/ }
-];
-function inferBloom(hay) {
-  for (const r of BLOOM_RULES) if (r.re.test(hay)) return r.level;
-  return 'understand';
-}
 
-/* ───────── 7. Classifier หลัก ───────── */
-export function classify(q) {
-  const hay    = buildHaystack(q);
-  const scores = scoreTopics(hay);
+/* ---------- main ---------- */
 
-  // bias ภาษาอังกฤษ
-  if (latinRatio(q.question_text) > 0.6) {
-    for (const [k, def] of Object.entries(TOPICS)) {
-      if (def.subject === 'english') scores[k] = (scores[k] ?? 0) + 2.0;
+const questions = JSON.parse(await fs.readFile(IN, 'utf8'));
+
+console.log(`📚 โหลดข้อสอบ ${questions.length} ข้อ`);
+
+
+const results = questions.map((q, i) => {
+
+  const r = ruleClassify(q);
+
+  return { id: q.id ?? i + 1, question_text: q.question_text, ...r,
+
+    difficulty: q.difficulty || estimateDifficulty(q), source: r.code ? 'rule' : 'none' };
+
+});
+
+
+if (USE_LLM) {
+
+  const weak = results.filter(r => r.confidence < THRESHOLD);
+
+  console.log(`🤖 ส่งให้ LLM ช่วย ${weak.length} ข้อ`);
+
+  for (let i = 0; i < weak.length; i += 20) {
+
+    const map = await llmClassify(weak.slice(i, i + 20));
+
+    for (const r of weak.slice(i, i + 20)) {
+
+      const g = map[r.id];
+
+      if (g?.code && byCode[g.code]) {
+
+        Object.assign(r, { code: g.code, confidence: g.confidence ?? 0.6, source: 'llm', reason: g.reason });
+
+      }
+
     }
+
   }
 
-  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  const total  = ranked.reduce((s, [, v]) => s + v, 0);
-
-  if (!ranked.length) {
-    return {
-      subject: 'aptitude', topic: 'unclassified', topic_label: 'ยังไม่จำแนก',
-      difficulty: inferDifficulty(q, hay), bloom: inferBloom(hay),
-      confidence: 0, needs_review: true, alternatives: []
-    };
-  }
-
-  const [topKey, topScore] = ranked[0];
-  const confidence = Number((topScore / total).toFixed(3));
-
-  return {
-    subject:      TOPICS[topKey].subject,
-    subject_label: SUBJECTS[TOPICS[topKey].subject],
-    topic:        topKey,
-    topic_label:  TOPICS[topKey].label,
-    difficulty:   inferDifficulty(q, hay),
-    bloom:        inferBloom(hay),
-    confidence,
-    needs_review: confidence < THRESHOLD,
-    alternatives: ranked.slice(1, 4).map(([k, v]) => ({
-      topic: k, label: TOPICS[k].label, score: Number(v.toFixed(2))
-    }))
-  };
 }
 
-/* ───────── 8. Data loaders ───────── */
-const sb = () => createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } }
-);
 
-async function loadQuestions() {
-  if (SOURCE === 'db') {
-    const { data, error } = await sb()
-      .from('questions')
-      .select('id, question_text, choices, answer_key, explanation, exam_year')
-      .order('id');
-    if (error) throw error;
-    return data;
-  }
-  const raw = await fs.readFile(SOURCE, 'utf8');
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : (parsed.questions ?? []);
+const enriched = results.map(r => {
+
+  const path = r.code ? ancestors(r.code) : [];
+
+  return { id: r.id, subject_code: path[0] ?? 'UNCLASSIFIED', area_code: path[1] ?? null,
+
+    topic_code: path[2] ?? null, difficulty: r.difficulty,
+
+    classify_confidence: r.confidence, classify_source: r.source,
+
+    needs_review: r.confidence < THRESHOLD, matched: r.hits ?? [] };
+
+});
+
+
+/* ---------- รายงาน ---------- */
+
+const tally = {};
+
+for (const e of enriched) tally[e.area_code || e.subject_code] = (tally[e.area_code || e.subject_code] || 0) + 1;
+
+console.table(Object.entries(tally).map(([code, n]) =>
+
+  ({ code, ชื่อ: byCode[code]?.th ?? '-', จำนวน: n, 'สัดส่วน %': ((n / enriched.length) * 100).toFixed(1) })));
+
+const review = enriched.filter(e => e.needs_review);
+
+console.log(`\n🔎 ต้องตรวจซ้ำ ${review.length} ข้อ → ${review.map(r => r.id).join(', ') || '-'}`);
+
+
+await fs.mkdir('out', { recursive: true });
+
+await fs.writeFile('out/classified.json', JSON.stringify(enriched, null, 2));
+
+await fs.writeFile('out/review.csv',
+
+  'id,subject,area,topic,difficulty,confidence,source\n' +
+
+  enriched.map(e => [e.id, e.subject_code, e.area_code, e.topic_code, e.difficulty, e.classify_confidence, e.classify_source].join(',')).join('\n'));
+
+console.log('💾 เขียน out/classified.json และ out/review.csv แล้ว');
+
+
+if (!APPLY) { console.log('\n(dry-run — ใส่ --apply เพื่อเขียนลง Supabase)'); process.exit(0); }
+
+
+const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+for (let i = 0; i < enriched.length; i += 50) {
+
+  const chunk = enriched.slice(i, i + 50).map(({ matched, ...rest }) => rest);
+
+  const { error } = await sb.from('questions').upsert(chunk, { onConflict: 'id' });
+
+  if (error) { console.error('❌', error.message); process.exit(1); }
+
+  console.log(`✅ อัปเดต ${Math.min(i + 50, enriched.length)}/${enriched.length}`);
+
 }
 
-/* ───────── 9. Writer ───────── */
-async function applyToDb(rows) {
-  const client = sb();
-  let ok = 0, fail = 0;
-  for (const r of rows) {
-    const { error } = await client.from('questions').update({
-      subject: r.taxonomy.subject,
-      topic: r.taxonomy.topic,
-      difficulty: r.taxonomy.difficulty,
-      bloom: r.taxonomy.bloom,
-      taxonomy_confidence: r.taxonomy.confidence,
-      needs_review: r.taxonomy.needs_review,
-      classified_at: new Date().toISOString()
-    }).eq('id', r.id);
-    if (error) { fail++; console.error(`  ✗ id=${r.id}`, error.message); }
-    else ok++;
-  }
-  console.log(`\n  เขียนฐานข้อมูลสำเร็จ ${ok} รายการ / ล้มเหลว ${fail} รายการ`);
-}
-
-/* ───────── 10. Report generator ───────── */
-function buildReport(rows) {
-  const bySubject = {}, byTopic = {}, byDiff = {};
-  for (const r of rows) {
-    const t = r.taxonomy;
-    bySubject[t.subject] = (bySubject[t.subject] ?? 0) + 1;
-    byTopic[t.topic]     = (byTopic[t.topic] ?? 0) + 1;
-    byDiff[t.difficulty] = (byDiff[t.difficulty] ?? 0) + 1;
-  }
-  const review = rows.filter(r => r.taxonomy.needs_review);
-  const L = [];
-  L.push('# รายงานผลการจำแนกข้อสอบเข้า Taxonomy', '');
-  L.push(`- จำนวนข้อทั้งหมด: **${rows.length}**`);
-  L.push(`- ต้องทบทวนโดยมนุษย์ (confidence < ${THRESHOLD}): **${review.length}**`);
-  L.push(`- ค่าความเชื่อมั่นเฉลี่ย: **${(rows.reduce((s,r)=>s+r.taxonomy.confidence,0)/rows.length).toFixed(3)}**`, '');
-  L.push('## การกระจายตามวิชา', '', '| วิชา | จำนวน | สัดส่วน |', '|---|---:|---:|');
-  for (const [k, v] of Object.entries(bySubject))
-    L.push(`| ${SUBJECTS[k] ?? k} | ${v} | ${(v*100/rows.length).toFixed(1)}% |`);
-  L.push('', '## การกระจายตามหัวเรื่อง', '', '| หัวเรื่อง | จำนวน |', '|---|---:|');
-  for (const [k, v] of Object.entries(byTopic).sort((a,b)=>b[1]-a[1]))
-    L.push(`| ${TOPICS[k]?.label ?? k} | ${v} |`);
-  L.push('', '## การกระจายตามระดับความยาก', '', '| ระดับ | จำนวน |', '|---|---:|');
-  for (const [k, v] of Object.entries(byDiff))
-    L.push(`| ${DIFFICULTY[k] ?? k} | ${v} |`);
-  if (review.length) {
-    L.push('', '## รายการที่ต้องทบทวน', '', '| id | ความเชื่อมั่น | หัวเรื่องที่คาด | ตัวเลือกรอง |', '|---|---:|---|---|');
-    for (const r of review)
-      L.push(`| ${r.id} | ${r.taxonomy.confidence} | ${r.taxonomy.topic_label ?? '-'} | ${r.taxonomy.alternatives.map(a=>a.label).join(', ') || '-'} |`);
-  }
-  return L.join('\n');
-}
-
-/* ───────── 11. Main ───────── */
-(async () => {
-  console.log('▶ กำลังโหลดข้อสอบจาก:', SOURCE);
-  const questions = await loadQuestions();
-  console.log(`  พบ ${questions.length} ข้อ\n`);
-
-  const rows = questions.map(q => ({ ...q, taxonomy: classify(q) }));
-
-  for (const r of rows) {
-    const t = r.taxonomy;
-    const flag = t.needs_review ? '⚠' : '✓';
-    console.log(`${flag} #${String(r.id).padStart(3)} → ${t.topic_label ?? t.topic} ` +
-                `[${t.difficulty}/${t.bloom}] conf=${t.confidence}`);
-  }
-
-  await fs.mkdir(OUT_DIR, { recursive: true });
-  await fs.writeFile(path.join(OUT_DIR, 'questions.classified.json'),
-                     JSON.stringify(rows, null, 2), 'utf8');
-  await fs.writeFile(path.join(OUT_DIR, 'classification-report.md'),
-                     buildReport(rows), 'utf8');
-  console.log(`\n  บันทึกผลลัพธ์ไว้ที่ ${OUT_DIR}/`);
-
-  if (APPLY) { console.log('\n▶ กำลังบันทึกผลลงฐานข้อมูล...'); await applyToDb(rows); }
-  else console.log('\n  (โหมด dry-run — เพิ่ม --apply เพื่อเขียนฐานข้อมูล)');
-})().catch(e => { console.error('เกิดข้อผิดพลาด:', e); process.exit(1); });
+console.log('🎉 เสร็จสิ้น');
