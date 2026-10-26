@@ -1,135 +1,112 @@
-// ═══════════════════════ scripts/taxonomy.js ═══════════════════════
-// นิยาม Ontology ของคลังข้อสอบ — ใช้ร่วมกันทั้งสคริปต์และ Admin UI
+// scripts/taxonomy.mjs
 
-export const SUBJECTS = {
-  aptitude: 'วิชาความสามารถในการคิดวิเคราะห์',
-  thai:     'วิชาภาษาไทย',
-  english:  'วิชาภาษาอังกฤษ',
-  ethics:   'วิชาความรู้และลักษณะการเป็นข้าราชการที่ดี'
-};
+export const TAXONOMY = [
 
-// keywords = น้ำหนัก 1.0 | strong = น้ำหนัก 2.5 (ตัวชี้วัดเฉพาะเจาะจง)
-export const TOPICS = {
-  /* ---------- 1) ความสามารถในการคิดวิเคราะห์ ---------- */
-  apt_series: {
-    subject: 'aptitude', label: 'อนุกรม / ลำดับตัวเลข',
-    strong: ['อนุกรม', 'ลำดับถัดไป', 'จงหาตัวเลขถัดไป'],
-    keywords: ['ชุดตัวเลข', 'เติมตัวเลข', '...', 'ตัวเลขที่หายไป']
-  },
-  apt_arithmetic: {
-    subject: 'aptitude', label: 'คณิตศาสตร์พื้นฐาน / ร้อยละ',
-    strong: ['ร้อยละ', 'เปอร์เซ็นต์', 'ดอกเบี้ย', 'กำไร', 'ขาดทุน', 'ส่วนลด'],
-    keywords: ['อัตราส่วน', 'สัดส่วน', 'เฉลี่ย', 'บาท', 'เท่าของ', 'ค่าเฉลี่ย']
-  },
-  apt_word_problem: {
-    subject: 'aptitude', label: 'โจทย์ปัญหา (งาน/เวลา/ความเร็ว)',
-    strong: ['ความเร็ว', 'ทำงานเสร็จใน', 'อัตราเร็ว', 'ท่อน้ำ'],
-    keywords: ['ชั่วโมง', 'กิโลเมตร', 'ระยะทาง', 'คนงาน', 'ใช้เวลา']
-  },
-  apt_data_analysis: {
-    subject: 'aptitude', label: 'การวิเคราะห์ข้อมูลจากตาราง/กราф',
-    strong: ['จากตาราง', 'จากแผนภูมิ', 'จากกราฟ', 'ข้อมูลต่อไปนี้'],
-    keywords: ['ตารางแสดง', 'แผนภูมิแท่ง', 'แผนภูมิวงกลม', 'สถิติ']
-  },
-  apt_logic_verbal: {
-    subject: 'aptitude', label: 'เงื่อนไขภาษา / ตรรกศาสตร์',
-    strong: ['เงื่อนไขภาษา', 'สรุปได้ว่า', 'ข้อสรุปที่ 1', 'ข้อสรุปที่ 2'],
-    keywords: ['ถ้า...แล้ว', 'ทุกคน', 'บางคน', 'ไม่มี', 'สมเหตุสมผล']
-  },
-  apt_logic_symbol: {
-    subject: 'aptitude', label: 'เงื่อนไขสัญลักษณ์',
-    strong: ['เงื่อนไขสัญลักษณ์', 'กำหนดให้', '≠', '≥', '≤'],
-    keywords: ['สัญลักษณ์', 'A > B', 'มากกว่า', 'น้อยกว่า', 'เท่ากับ']
-  },
-  apt_spatial: {
-    subject: 'aptitude', label: 'มิติสัมพันธ์ / อุปมาอุปไมย',
-    strong: ['อุปมาอุปไมย', 'มิติสัมพันธ์', 'รูปคลี่', 'ภาพที่หายไป'],
-    keywords: ['สัมพันธ์กับ', 'เปรียบเทียบ', 'รูปต่อไปนี้']
-  },
+  { code:'GEN', parent:null, level:1, th:'วิชาความสามารถในการคิดวิเคราะห์', en:'General Aptitude' },
 
-  /* ---------- 2) ภาษาไทย ---------- */
-  th_reading: {
-    subject: 'thai', label: 'การอ่านจับใจความ / สรุปความ',
-    strong: ['จากบทความ', 'ข้อความต่อไปนี้', 'ใจความสำคัญ', 'สาระสำคัญ'],
-    keywords: ['ผู้เขียนต้องการ', 'สรุปความ', 'ตีความ', 'บทความนี้']
-  },
-  th_ordering: {
-    subject: 'thai', label: 'การเรียงลำดับข้อความ',
-    strong: ['เรียงลำดับข้อความ', 'เรียงประโยค', 'ลำดับที่เหมาะสม'],
-    keywords: ['จงเรียง', 'ข้อความใดควรอยู่']
-  },
-  th_word_usage: {
-    subject: 'thai', label: 'การใช้คำ / การสะกดคำ / ราชาศัพท์',
-    strong: ['สะกดถูกต้อง', 'ใช้คำผิด', 'ราชาศัพท์', 'คำราชาศัพท์'],
-    keywords: ['ความหมายของคำ', 'คำใดใช้ถูก', 'สำนวน', 'คำซ้อน']
-  },
-  th_sentence: {
-    subject: 'thai', label: 'ประโยคบกพร่อง / โครงสร้างประโยค',
-    strong: ['ประโยคใดบกพร่อง', 'ประโยคกำกวม', 'ประโยครัดกุม', 'ฟุ่มเฟือย'],
-    keywords: ['ประโยคใดถูกต้อง', 'ภาษาระดับ', 'สื่อสารชัดเจน']
-  },
+  { code:'GEN.MATH', parent:'GEN', level:2, th:'คิดวิเคราะห์เชิงปริมาณ', en:'Quantitative' },
 
-  /* ---------- 3) ภาษาอังกฤษ ---------- */
-  en_grammar: {
-    subject: 'english', label: 'Grammar & Structure',
-    strong: ['choose the correct', 'fill in the blank', 'tense', 'preposition'],
-    keywords: ['verb', 'clause', 'article', 'subject-verb', 'passive']
-  },
-  en_vocabulary: {
-    subject: 'english', label: 'Vocabulary',
-    strong: ['closest in meaning', 'synonym', 'antonym', 'opposite meaning'],
-    keywords: ['word', 'meaning of', 'definition']
-  },
-  en_conversation: {
-    subject: 'english', label: 'Conversation',
-    strong: ['conversation', 'dialogue', 'a:', 'b:', 'speaker'],
-    keywords: ['respond', 'reply', 'situation', 'what would you say']
-  },
-  en_reading: {
-    subject: 'english', label: 'Reading Comprehension',
-    strong: ['passage', 'according to the text', 'the author', 'read the following'],
-    keywords: ['main idea', 'infer', 'best title', 'paragraph']
-  },
+  { code:'GEN.MATH.SERIES',  parent:'GEN.MATH', level:3, th:'อนุกรม / เลขเรียงลำดับ' },
 
-  /* ---------- 4) การเป็นข้าราชการที่ดี ---------- */
-  eth_civil_act: {
-    subject: 'ethics', label: 'พ.ร.บ. ระเบียบข้าราชการพลเรือน 2551',
-    strong: ['ข้าราชการพลเรือน', 'ก.พ.ค.', 'วินัยอย่างร้ายแรง', 'ไล่ออก', 'ปลดออก'],
-    keywords: ['วินัย', 'อุทธรณ์', 'ร้องทุกข์', 'ตำแหน่งประเภท', 'บรรจุแต่งตั้ง']
-  },
-  eth_admin_law: {
-    subject: 'ethics', label: 'ระเบียบบริหารราชการแผ่นดิน',
-    strong: ['บริหารราชการแผ่นดิน', 'ราชการส่วนภูมิภาค', 'ราชการส่วนกลาง', 'ปลัดกระทรวง'],
-    keywords: ['กระทรวง', 'ทบวง', 'กรม', 'จังหวัด', 'อำเภอ', 'มอบอำนาจ']
-  },
-  eth_good_governance: {
-    subject: 'ethics', label: 'พ.ร.ฎ. การบริหารกิจการบ้านเมืองที่ดี',
-    strong: ['บริหารกิจการบ้านเมืองที่ดี', 'ธรรมาภิบาล', 'เกิดผลสัมฤทธิ์'],
-    keywords: ['คุ้มค่า', 'ลดขั้นตอน', 'ประชาชนเป็นศูนย์กลาง', 'ประเมินผล']
-  },
-  eth_admin_procedure: {
-    subject: 'ethics', label: 'วิธีปฏิบัติราชการทางปกครอง',
-    strong: ['วิธีปฏิบัติราชการทางปกครอง', 'คำสั่งทางปกครอง', 'เจ้าหน้าที่มีส่วนได้เสีย'],
-    keywords: ['คู่กรณี', 'เพิกถอน', 'แจ้งสิทธิอุทธรณ์', 'ทางปกครอง']
-  },
-  eth_liability: {
-    subject: 'ethics', label: 'ความรับผิดทางละเมิดของเจ้าหน้าที่',
-    strong: ['ความรับผิดทางละเมิด', 'ละเมิด', 'ไล่เบี้ย'],
-    keywords: ['ชดใช้ค่าสินไหม', 'จงใจ', 'ประมาทเลินเล่ออย่างร้ายแรง']
-  },
-  eth_code: {
-    subject: 'ethics', label: 'ประมวลจริยธรรม / มาตรฐานทางจริยธรรม',
-    strong: ['ประมวลจริยธรรม', 'มาตรฐานทางจริยธรรม', 'ผลประโยชน์ทับซ้อน'],
-    keywords: ['ซื่อสัตย์สุจริต', 'จิตสาธารณะ', 'ยึดมั่นในสถาบัน', 'คุณธรรม']
-  }
-};
+  { code:'GEN.MATH.WORD',    parent:'GEN.MATH', level:3, th:'โจทย์คณิตศาสตร์ทั่วไป' },
 
-export const DIFFICULTY = { easy: 'ง่าย', medium: 'ปานกลาง', hard: 'ยาก' };
-export const BLOOM = {
-  remember:   'จำ (Remember)',
-  understand: 'เข้าใจ (Understand)',
-  apply:      'ประยุกต์ (Apply)',
-  analyze:    'วิเคราะห์ (Analyze)'
-};
+  { code:'GEN.MATH.DATA',    parent:'GEN.MATH', level:3, th:'การวิเคราะห์ข้อมูลจากตาราง/กราฟ' },
 
-export const EXP_BY_DIFFICULTY = { easy: 10, medium: 15, hard: 25 };
+  { code:'GEN.MATH.GEOM',    parent:'GEN.MATH', level:3, th:'เรขาคณิต / พื้นที่ / ปริมาตร' },
+
+  { code:'GEN.MATH.PROB',    parent:'GEN.MATH', level:3, th:'ความน่าจะเป็น / สถิติเบื้องต้น' },
+
+  { code:'GEN.LOGIC', parent:'GEN', level:2, th:'คิดวิเคราะห์เชิงเหตุผล', en:'Logical Reasoning' },
+
+  { code:'GEN.LOGIC.SYMBOL', parent:'GEN.LOGIC', level:3, th:'เงื่อนไขสัญลักษณ์' },
+
+  { code:'GEN.LOGIC.VERBAL', parent:'GEN.LOGIC', level:3, th:'เงื่อนไขภาษา / ตรรกศาสตร์' },
+
+  { code:'GEN.LOGIC.SERIES', parent:'GEN.LOGIC', level:3, th:'อุปมาอุปไมย / ความสัมพันธ์' },
+
+  { code:'GEN.THAI', parent:'GEN', level:2, th:'คิดวิเคราะห์เชิงภาษา', en:'Thai Language' },
+
+  { code:'GEN.THAI.READ',    parent:'GEN.THAI', level:3, th:'บทความสั้น / บทความยาว' },
+
+  { code:'GEN.THAI.ORDER',   parent:'GEN.THAI', level:3, th:'การเรียงลำดับข้อความ' },
+
+  { code:'GEN.THAI.WORD',    parent:'GEN.THAI', level:3, th:'การเลือกใช้คำ / เติมคำ' },
+
+  { code:'GEN.THAI.ERROR',   parent:'GEN.THAI', level:3, th:'การสะกดคำ / ประโยคบกพร่อง' },
+
+  { code:'ENG', parent:null, level:1, th:'ภาษาอังกฤษ', en:'English' },
+
+  { code:'ENG.CONV',  parent:'ENG', level:2, th:'Conversation' },
+
+  { code:'ENG.VOCAB', parent:'ENG', level:2, th:'Vocabulary' },
+
+  { code:'ENG.GRAM',  parent:'ENG', level:2, th:'Structure & Grammar' },
+
+  { code:'ENG.READ',  parent:'ENG', level:2, th:'Reading Comprehension' },
+
+  { code:'CIV', parent:null, level:1, th:'ความรู้และลักษณะการเป็นข้าราชการที่ดี', en:'Civil Service' },
+
+  { code:'CIV.ADMIN', parent:'CIV', level:2, th:'ระเบียบบริหารราชการแผ่นดิน' },
+
+  { code:'CIV.PERSON',parent:'CIV', level:2, th:'ระเบียบข้าราชการพลเรือน' },
+
+  { code:'CIV.GOVD',  parent:'CIV', level:2, th:'การบริหารกิจการบ้านเมืองที่ดี' },
+
+  { code:'CIV.PROC',  parent:'CIV', level:2, th:'วิธีปฏิบัติราชการทางปกครอง' },
+
+  { code:'CIV.TORT',  parent:'CIV', level:2, th:'ความรับผิดทางละเมิดของเจ้าหน้าที่' },
+
+  { code:'CIV.ETHIC', parent:'CIV', level:2, th:'มาตรฐานทางจริยธรรม / วินัย' },
+
+];
+
+
+// กฎจำแนก: [regex, code, น้ำหนัก]
+
+export const RULES = [
+
+  [/อนุกรม|ลำดับถัดไป|จำนวนถัดไป|\?\s*$/u, 'GEN.MATH.SERIES', 3],
+
+  [/ตาราง|กราฟ|แผนภูมิ|ร้อยละของ.*ปี|จากข้อมูลข้างต้น/u, 'GEN.MATH.DATA', 3],
+
+  [/ร้อยละ|เปอร์เซ็นต์|กำไร|ขาดทุน|ดอกเบี้ย|อัตราส่วน|ความเร็ว|กม\./u, 'GEN.MATH.WORD', 2],
+
+  [/พื้นที่|ปริมาตร|เส้นรอบรูป|สามเหลี่ยม|สี่เหลี่ยม|วงกลม|มุม/u, 'GEN.MATH.GEOM', 3],
+
+  [/ความน่าจะเป็น|ค่าเฉลี่ย|มัธยฐาน|ฐานนิยม|ส่วนเบี่ยงเบน|สุ่มหยิบ/u, 'GEN.MATH.PROB', 3],
+
+  [/เงื่อนไขสัญลักษณ์|[A-Z]\s*[><=≥≤]\s*[A-Z]|สรุปที่ ?1|สรุปที่ ?2/u, 'GEN.LOGIC.SYMBOL', 4],
+
+  [/ทุกคน|บางคน|ไม่มี.*ใด|ข้อสรุป|สมเหตุสมผล/u, 'GEN.LOGIC.VERBAL', 2],
+
+  [/อุปมา|สัมพันธ์กับ|:\s*\S+\s*::/u, 'GEN.LOGIC.SERIES', 3],
+
+  [/จงเรียงลำดับ|เรียงข้อความ|ข้อความต่อไปนี้ให้ถูกต้อง|๑\)|1\)\s*.*2\)\s*.*3\)/u, 'GEN.THAI.ORDER', 4],
+
+  [/บทความ|ผู้เขียน|ใจความสำคัญ|สาระสำคัญ|จุดประสงค์ของผู้เขียน/u, 'GEN.THAI.READ', 3],
+
+  [/เติมคำ|คำใดเหมาะสม|ใช้คำใด|ความหมายของคำ|สำนวน|สุภาษิต/u, 'GEN.THAI.WORD', 3],
+
+  [/สะกดผิด|บกพร่อง|ฟุ่มเฟือย|กำกวม|ใช้ภาษาไม่ถูกต้อง/u, 'GEN.THAI.ERROR', 3],
+
+  [/^(A|B|Man|Woman|Speaker)\s*:|Choose the best response|conversation/iu, 'ENG.CONV', 4],
+
+  [/closest in meaning|synonym|antonym|the word ".*" means/iu, 'ENG.VOCAB', 4],
+
+  [/Read the passage|According to the passage|the passage mainly/iu, 'ENG.READ', 4],
+
+  [/Choose the correct|fill in the blank|grammatically|tense|preposition/iu, 'ENG.GRAM', 3],
+
+  [/บริหารราชการแผ่นดิน|ส่วนกลาง|ส่วนภูมิภาค|ส่วนท้องถิ่น|ปลัดกระทรวง|ผู้ว่าราชการจังหวัด/u, 'CIV.ADMIN', 4],
+
+  [/ข้าราชการพลเรือน|ก\.พ\.|ประเภทตำแหน่ง|วิชาการ|อำนวยการ|บรรจุแต่งตั้ง/u, 'CIV.PERSON', 3],
+
+  [/บ้านเมืองที่ดี|ธรรมาภิบาล|เกิดประโยชน์สุข|คุ้มค่า|ลดขั้นตอน/u, 'CIV.GOVD', 4],
+
+  [/คำสั่งทางปกครอง|วิธีปฏิบัติราชการทางปกครอง|อุทธรณ์|เพิกถอนคำสั่ง|คู่กรณี/u, 'CIV.PROC', 4],
+
+  [/ละเมิด|ชดใช้ค่าสินไหม|จงใจหรือประมาทเลินเล่ออย่างร้ายแรง|ไล่เบี้ย/u, 'CIV.TORT', 4],
+
+  [/จริยธรรม|วินัย|ประมวลจริยธรรม|ผลประโยชน์ทับซ้อน|ซื่อสัตย์สุจริต|ไล่ออก|ปลดออก/u, 'CIV.ETHIC', 3],
+
+];
