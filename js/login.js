@@ -4,31 +4,35 @@
 // หมายเหตุสำคัญ: การสร้าง profile แถวใหม่ (ทั้งอีเมลและ Google) ถูกจัดการอัตโนมัติ
 // โดย Postgres trigger "on_auth_user_created" ฝั่งฐานข้อมูลแล้ว ไม่ต้องทำที่ client อีก
 
-(async function bootstrap() {
-  const wrap = document.getElementById("login-wrap");
-  if (!wrap) return;
+function getSubmitUi() {
+  const submitBtn = document.getElementById("login-submit-btn");
+  if (!submitBtn) return null;
 
-  if (typeof sb === "undefined") {
-    console.error("[login] sb ไม่ได้โหลด");
-    wrap.style.visibility = "visible";
-    showError("ระบบยังโหลดไม่ครบ กรุณา refresh หน้าอีกครั้ง");
-    return;
+  const textEl = submitBtn.querySelector(".login-submit-text") || submitBtn;
+  const spinner = submitBtn.querySelector(".login-submit-spinner");
+
+  return { submitBtn, textEl, spinner };
+}
+
+function setSubmitLoading(isLoading, message = "กำลังเข้าสู่ระบบ...") {
+  const ui = getSubmitUi();
+  if (!ui) return;
+
+  const { submitBtn, textEl, spinner } = ui;
+  submitBtn.disabled = isLoading;
+
+  if (spinner) {
+    spinner.classList.toggle("hidden", !isLoading);
+    spinner.style.display = isLoading ? "inline-flex" : "none";
   }
 
-  try {
-    await redirectIfAuthenticated("dashboard.html");
-  } catch (err) {
-    console.warn("[login] redirect check failed:", err);
+  const text = isLoading ? message : "เข้าสู่ระบบ";
+  if (textEl === submitBtn) {
+    submitBtn.textContent = text;
+  } else {
+    textEl.textContent = text;
   }
-
-  wrap.style.visibility = "visible";
-
-  // ─── Login form ───
-  document.getElementById("login-form")?.addEventListener("submit", handleLogin);
-
-  // ─── Google ───
-  document.getElementById("google-signin-btn")?.addEventListener("click", handleGoogleSignin);
-})();
+}
 
 function showError(message) {
   const banner = document.getElementById("error-banner");
@@ -41,22 +45,39 @@ function hideError() {
   document.getElementById("error-banner")?.classList.add("hidden");
 }
 
-// ═══════════════════════════════════════════
-// Login with Email/Password
-// ═══════════════════════════════════════════
+(async function bootstrap() {
+  const form = document.getElementById("login-form");
+  if (!form) return;
+
+  if (typeof sb === "undefined") {
+    console.error("[login] sb ไม่ได้โหลด");
+    showError("ระบบยังโหลดไม่ครบ กรุณา refresh หน้าอีกครั้ง");
+    return;
+  }
+
+  try {
+    await redirectIfAuthenticated("dashboard.html");
+  } catch (err) {
+    console.warn("[login] redirect check failed:", err);
+  }
+
+  form.addEventListener("submit", handleLogin);
+  document.getElementById("google-signin-btn")?.addEventListener("click", handleGoogleSignin);
+})();
+
 async function handleLogin(e) {
   e.preventDefault();
   hideError();
 
-  const email = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value;
-  const submitBtn = document.getElementById("login-submit-btn");
-  const submitText = submitBtn.querySelector(".login-submit-text");
-  const submitSpinner = submitBtn.querySelector(".login-submit-spinner");
+  const email = document.getElementById("login-email")?.value.trim() || "";
+  const password = document.getElementById("login-password")?.value || "";
 
-  submitBtn.disabled = true;
-  submitText.textContent = "กำลังเข้าสู่ระบบ...";
-  submitSpinner.classList.remove("hidden");
+  if (!email || !password) {
+    showError("กรุณากรอกอีเมลและรหัสผ่านก่อนเข้าสู่ระบบ");
+    return;
+  }
+
+  setSubmitLoading(true);
 
   try {
     const { data, error } = await withRetry(
@@ -76,25 +97,22 @@ async function handleLogin(e) {
     window.location.href = "dashboard.html";
   } catch (err) {
     showError(getSupabaseAuthErrorMessage(err));
-    submitBtn.disabled = false;
-    submitText.textContent = "เข้าสู่ระบบ";
-    submitSpinner.classList.add("hidden");
+    setSubmitLoading(false, "เข้าสู่ระบบ");
   }
 }
 
-// ═══════════════════════════════════════════
-// Google Sign-In
-// ═══════════════════════════════════════════
 async function handleGoogleSignin() {
   hideError();
 
   const googleBtn = document.getElementById("google-signin-btn");
+  if (!googleBtn) return;
+
   const originalHtml = googleBtn.innerHTML;
   const originalDisabled = googleBtn.disabled;
 
   googleBtn.disabled = true;
   googleBtn.innerHTML = `
-    <div class="login-submit-spinner" style="display:inline-flex;width:18px;height:18px; margin-right:0.5rem;"></div>
+    <span class="login-submit-spinner" style="display:inline-flex;width:18px;height:18px;margin-right:0.5rem;"></span>
     <span>กำลังเข้าสู่ระบบ...</span>
   `;
 
