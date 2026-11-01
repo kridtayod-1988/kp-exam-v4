@@ -2,20 +2,12 @@
 // ═══════════════════════════════════════════════════════════════
 // Dashboard — เลือกโหมดทำข้อสอบ + EXP/Level + Showcase
 // ═══════════════════════════════════════════════════════════════
-// 2 โหมด:
-//   1. Practice (ฝึก) — เลือกหมวด + count → เฉลยทันที
-//   2. Exam Sets (สอบ) — เลือกชุดสอบ → จับเวลา → ส่งทีเดียว
-// ═══════════════════════════════════════════════════════════════
 
-// ─── State ───
 let dashboardUser = null;
-let selectedPracticeCount = 10;    // default
-let currentPracticeCategoryId = null;
+let selectedCategoryCount = 10;
+let selectedYearCount = 10;
 
-// ═══════════════════════════════════════════
-// Init
-// ═══════════════════════════════════════════
-(async function init() {
+(function initDashboard() {
   console.log("[dashboard] init start");
 
   if (typeof sb === "undefined") {
@@ -24,79 +16,121 @@ let currentPracticeCategoryId = null;
     return;
   }
 
-  try {
-    const { user, userData } = await requireAuth();
-    dashboardUser = user;
+  const pageReady = () => {
+    const loginForm = document.getElementById("login-form");
+    const categorySelect = document.getElementById("category-select");
+    const fullExamButton = document.getElementById("start-full-exam-btn");
+    const categoryButton = document.getElementById("start-category-exam-btn");
+    const yearButton = document.getElementById("start-year-exam-btn");
 
-    // ─── User greeting + stats ───
-    setTextSafe("user-greeting", `สวัสดี, ${userData?.displayName || user.email}`);
-    setTextSafe("stat-total-attempts", String(userData?.stats?.totalAttempts ?? 0));
-    setTextSafe("stat-best-score", String(userData?.stats?.bestScore ?? 0));
+    if (!loginForm && !categorySelect && !fullExamButton && !categoryButton && !yearButton) {
+      return false;
+    }
 
-    renderLevelWidget(userData?.stats?.totalExp ?? 0, {
-      levelNum: "level-num",
-      expFill: "exp-fill",
-      expLabel: "exp-label"
-    });
+    return true;
+  };
 
-    // ─── Bind events ───
-    bindEvents();
-
-    // ─── Load data (parallel) ───
-    await Promise.all([
-      loadSystemConfig(),
-      loadPracticeCategories(),
-      loadExamSets()
-    ]);
-
-  } catch (err) {
-    console.error("[dashboard] init error:", err);
+  if (!pageReady()) {
+    return;
   }
+
+  (async function run() {
+    try {
+      const { user, userData } = await requireAuth();
+      dashboardUser = user;
+
+      setTextSafe("user-greeting", `สวัสดี, ${userData?.displayName || user.email}`);
+      setTextSafe("stat-total-attempts", String(userData?.stats?.totalAttempts ?? 0));
+      setTextSafe("stat-best-score", String(userData?.stats?.bestScore ?? 0));
+
+      renderLevelWidget(userData?.stats?.totalExp ?? 0, {
+        levelNum: "level-num",
+        expFill: "exp-fill",
+        expLabel: "exp-label"
+      });
+
+      bindEvents();
+      await Promise.all([
+        loadSystemConfig(),
+        loadCategoryOptions(),
+        loadYearOptions(),
+        loadExamSets()
+      ]);
+    } catch (err) {
+      console.error("[dashboard] init error:", err);
+    }
+  })();
 })();
 
-// ═══════════════════════════════════════════
-// Bind events
-// ═══════════════════════════════════════════
 function bindEvents() {
-  // Logout
   document.getElementById("logout-btn")?.addEventListener("click", signOutUser);
 
-  // ─── Practice count buttons (10/25/50) ───
-  document.querySelectorAll("#practice-count-group .count-btn").forEach((btn) => {
+  document.getElementById("start-full-exam-btn")?.addEventListener("click", () => {
+    sessionStorage.setItem("examConfig", JSON.stringify({
+      mode: "full",
+      count: 100,
+      timeLimitMinutes: 180
+    }));
+    window.location.href = "exam.html";
+  });
+
+  document.querySelectorAll("#category-count-buttons .count-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll("#practice-count-group .count-btn").forEach((b) => {
-        b.classList.remove("active");
-      });
+      document.querySelectorAll("#category-count-buttons .count-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      selectedPracticeCount = parseInt(btn.dataset.count, 10);
+      selectedCategoryCount = Number(btn.dataset.count || 10);
     });
   });
 
-  // ─── Start Practice ───
-  document.getElementById("start-practice-btn")?.addEventListener("click", () => {
-    const select = document.getElementById("practice-category-select");
+  document.getElementById("start-category-exam-btn")?.addEventListener("click", () => {
+    const select = document.getElementById("category-select");
     const categoryId = select?.value;
-    const selectedOption = select?.options[select.selectedIndex];
+    const categoryName = select?.selectedOptions?.[0]?.textContent || "";
 
     if (!categoryId) {
       showToast("กรุณาเลือกหมวดหมู่ก่อน", "warning");
       return;
     }
 
-    // เก็บ config ไปหน้า practice
-    sessionStorage.setItem("practiceConfig", JSON.stringify({
+    sessionStorage.setItem("examConfig", JSON.stringify({
+      mode: "category",
       categoryId,
-      categoryName: selectedOption?.textContent || "",
-      count: selectedPracticeCount
+      categoryName,
+      count: selectedCategoryCount,
+      timeLimitMinutes: 30
     }));
 
-    window.location.href = "practice.html";
+    window.location.href = "exam.html";
+  });
+
+  document.querySelectorAll("#year-count-buttons .count-btn-year").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#year-count-buttons .count-btn-year").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedYearCount = Number(btn.dataset.count || 10);
+    });
+  });
+
+  document.getElementById("start-year-exam-btn")?.addEventListener("click", () => {
+    const yearSelect = document.getElementById("year-select");
+    const yearId = yearSelect?.value;
+
+    if (!yearId) {
+      showToast("กรุณาเลือกปีข้อสอบก่อน", "warning");
+      return;
+    }
+
+    sessionStorage.setItem("examConfig", JSON.stringify({
+      mode: "year",
+      yearId,
+      count: selectedYearCount,
+      timeLimitMinutes: 30
+    }));
+
+    window.location.href = "exam.html";
   });
 }
 
-// ═══════════════════════════════════════════
-// Load: System Config
-// ═══════════════════════════════════════════
 async function loadSystemConfig() {
   try {
     const { data, error } = await sb
@@ -110,19 +144,17 @@ async function loadSystemConfig() {
     const count = data?.full_exam_question_count || 100;
     const minutes = data?.full_exam_time_minutes || 180;
 
-    setTextSafe("full-exam-description",
-      `สุ่มข้อสอบ ${count} ข้อ • ${minutes} นาที • เลี่ยงข้อที่เคยทำ`);
-
+    setTextSafe(
+      "full-exam-description",
+      `สุ่มข้อสอบ ${count} ข้อ • ${minutes} นาที • เลี่ยงข้อที่เคยทำ`
+    );
   } catch (err) {
     console.error("[dashboard] loadSystemConfig error:", err);
   }
 }
 
-// ═══════════════════════════════════════════
-// Load: Practice Categories
-// ═══════════════════════════════════════════
-async function loadPracticeCategories() {
-  const select = document.getElementById("practice-category-select");
+async function loadCategoryOptions() {
+  const select = document.getElementById("category-select");
   if (!select) return;
 
   try {
@@ -134,10 +166,10 @@ async function loadPracticeCategories() {
 
     if (error) throw error;
 
-    select.innerHTML = "";
+    select.innerHTML = "<option value=''>เลือกหมวดหมู่</option>";
 
     if (!data || data.length === 0) {
-      select.innerHTML = `<option value="">ยังไม่มีหมวดหมู่</option>`;
+      select.innerHTML = "<option value=''>ยังไม่มีหมวดหมู่</option>";
       return;
     }
 
@@ -147,22 +179,46 @@ async function loadPracticeCategories() {
       option.textContent = row.name;
       select.appendChild(option);
     });
-
-    console.log("[dashboard] โหลดหมวดหมู่ฝึก:", data.length, "รายการ");
-
   } catch (err) {
-    console.error("[dashboard] loadPracticeCategories error:", err);
-    select.innerHTML = `<option value="">โหลดไม่สำเร็จ</option>`;
+    console.error("[dashboard] loadCategoryOptions error:", err);
+    select.innerHTML = "<option value=''>โหลดไม่สำเร็จ</option>";
   }
 }
 
-// ═══════════════════════════════════════════
-// Load: Exam Sets (การ์ดชุดสอบ)
-// ═══════════════════════════════════════════
-async function loadExamSets() {
-  const grid = document.getElementById("exam-sets-grid");
-  const empty = document.getElementById("exam-sets-empty");
+async function loadYearOptions() {
+  const select = document.getElementById("year-select");
+  if (!select) return;
 
+  try {
+    const { data, error } = await sb
+      .from("exam_years")
+      .select("id, label, year")
+      .order("year", { ascending: false });
+
+    if (error) throw error;
+
+    select.innerHTML = "<option value=''>เลือกปีข้อสอบ</option>";
+
+    if (!data || data.length === 0) {
+      select.innerHTML = "<option value=''>ยังไม่มีปีข้อสอบ</option>";
+      return;
+    }
+
+    data.forEach((row) => {
+      const option = document.createElement("option");
+      option.value = row.id;
+      option.textContent = row.label || row.year || "ปีข้อสอบ";
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("[dashboard] loadYearOptions error:", err);
+    select.innerHTML = "<option value=''>โหลดไม่สำเร็จ</option>";
+  }
+}
+
+async function loadExamSets() {
+  const grid = document.getElementById("papers-grid");
+  const empty = document.getElementById("papers-empty");
   if (!grid) return;
 
   try {
@@ -191,26 +247,19 @@ async function loadExamSets() {
     if (!data || data.length === 0) {
       grid.classList.add("hidden");
       empty?.classList.remove("hidden");
-      console.log("[dashboard] ไม่มี exam_sets");
       return;
     }
 
     data.forEach((set) => {
       grid.appendChild(buildExamSetCard(set));
     });
-
-    console.log("[dashboard] โหลด exam_sets:", data.length, "ชุด");
-
   } catch (err) {
     console.error("[dashboard] loadExamSets error:", err);
     grid.innerHTML = "";
-    if (empty) empty.classList.remove("hidden");
+    empty?.classList.remove("hidden");
   }
 }
 
-// ═══════════════════════════════════════════
-// Build Exam Set Card
-// ═══════════════════════════════════════════
 function buildExamSetCard(set) {
   const card = document.createElement("div");
   card.className = "paper-card";
@@ -218,7 +267,6 @@ function buildExamSetCard(set) {
   card.setAttribute("tabindex", "0");
   card.setAttribute("aria-label", `เริ่มทำชุด ${set.name}`);
 
-  // ─── Top row ───
   const top = document.createElement("div");
   top.className = "paper-card-top";
 
@@ -234,13 +282,11 @@ function buildExamSetCard(set) {
   top.appendChild(yearBadge);
   card.appendChild(top);
 
-  // ─── Name ───
   const label = document.createElement("p");
   label.className = "paper-card-label";
   label.textContent = set.name;
   card.appendChild(label);
 
-  // ─── Description ───
   if (set.description) {
     const desc = document.createElement("p");
     desc.className = "paper-card-desc";
@@ -248,7 +294,6 @@ function buildExamSetCard(set) {
     card.appendChild(desc);
   }
 
-  // ─── Meta (count + time + arrow) ───
   const meta = document.createElement("div");
   meta.className = "paper-card-meta";
 
@@ -259,7 +304,6 @@ function buildExamSetCard(set) {
   count.appendChild(countBold);
   count.appendChild(document.createTextNode(" ข้อ"));
 
-  // Time info
   const timeWrap = document.createElement("span");
   timeWrap.style.cssText = "font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);";
   timeWrap.textContent = `⏱ ${set.time_limit_minutes || 0} นาที`;
@@ -277,7 +321,6 @@ function buildExamSetCard(set) {
   meta.appendChild(arrow);
   card.appendChild(meta);
 
-  // ─── Click handler ───
   const startExam = () => {
     sessionStorage.setItem("examConfig", JSON.stringify({
       mode: "exam_set",
@@ -299,9 +342,6 @@ function buildExamSetCard(set) {
   return card;
 }
 
-// ═══════════════════════════════════════════
-// Helper (ถ้าไม่มีใน utils.js)
-// ═══════════════════════════════════════════
 if (typeof setTextSafe !== "function") {
   window.setTextSafe = function (id, text) {
     const el = document.getElementById(id);
