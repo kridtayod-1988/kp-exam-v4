@@ -1,16 +1,26 @@
 // js/supabase-config.js
-//
 // ✅ ตั้งค่าแล้วสำหรับโปรเจกต์ Supabase "KPOR"
 //
-// หากต้องการเปลี่ยนไปใช้โปรเจกต์อื่นในอนาคต ดูค่าที่ Supabase Dashboard:
-// Project Settings → API → Project URL และ Publishable key
-//
-// อย่าลืม:
-// - เปิดใช้ Authentication → Providers → Email และ Google (ต้องตั้งค่า OAuth client ID ที่ Google Cloud Console ด้วย)
-// - schema/RLS policies ถูก deploy ผ่าน migration แล้ว (ดู supabase/migrations/)
+// ใช้หนึ่งชุดค่าเดียวกันกับ js/config.js เพื่อหลีกเลี่ยงปัญหาจาก import mismatch
+const DEFAULT_SUPABASE_URL = "https://wefgreavazpfctayjnmp.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_91tqJTiGiTOvbrO7To4frQ_eEhivQyk";
 
-const SUPABASE_URL = "https://wefgreavazpfctayjnmp.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_91tqJTiGiTOvbrO7To4frQ_eEhivQyk";
+(function initializeSupabaseConfig() {
+  const globalScope = typeof window !== "undefined" ? window : globalThis;
 
-// เริ่มต้น Supabase client (ใช้ตัวแปร global ชื่อ `supabase` จาก CDN script ที่โหลดไว้ก่อนหน้าไฟล์นี้)
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  globalScope.SUPABASE_URL = globalScope.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  globalScope.SUPABASE_ANON_KEY =
+    globalScope.SUPABASE_ANON_KEY ||
+    globalScope.SUPABASE_PUBLISHABLE_KEY ||
+    DEFAULT_SUPABASE_KEY;
+  globalScope.SUPABASE_PUBLISHABLE_KEY = globalScope.SUPABASE_ANON_KEY;
+
+  if (globalScope.supabase && typeof globalScope.supabase.createClient === "function") {
+    globalScope.sb = globalScope.supabase.createClient(
+      globalScope.SUPABASE_URL,
+      globalScope.SUPABASE_ANON_KEY
+    );
+  } else {
+    globalScope.sb = null;
+  }
+})();

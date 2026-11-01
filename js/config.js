@@ -13,13 +13,16 @@ const SUPABASE_ANON_KEY = readWindowValue(
 );
 
 const sb =
-  typeof window !== "undefined" && window.supabase && typeof window.supabase.createClient === "function"
+  typeof window !== "undefined" &&
+  window.supabase &&
+  typeof window.supabase.createClient === "function"
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
 if (typeof window !== "undefined") {
   window.SUPABASE_URL = SUPABASE_URL;
   window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+  window.SUPABASE_PUBLISHABLE_KEY = SUPABASE_ANON_KEY;
   window.sb = sb;
 }
 
