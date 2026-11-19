@@ -12,3 +12,10 @@ node_modules/
 
 # GitHub Pages build artifacts (ถ้ามีการเพิ่ม build step ทีหลัง)
 dist/
+
+# Next.js
+.next/
+out/
+.env
+.env.*
+!.env.example
