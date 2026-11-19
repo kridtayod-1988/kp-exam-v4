@@ -55,9 +55,10 @@ export function DashboardExamPicker({ categories, years }: { categories: Option[
         <div><h2 style={{ margin: 0 }}>ฝึกตามปีข้อสอบ</h2><p className="muted">เลือกปีและจำนวนข้อ</p></div>
         <select className="field" value={yearId} onChange={e => setYearId(e.target.value)}>
           <option value="">เลือกปีข้อสอบ</option>
-          {years.map(item => <option key={item.id} value={item.id}>{item.label} ({item.count} ข้อ)</option>)}
+          {years.map(item => <option key={item.id} value={item.id} disabled={item.count === 0}>{item.label} ({item.count} ข้อ)</option>)}
         </select>
-        <button className="btn btn-secondary" disabled={busy || !yearId} onClick={() => start("year")}>เริ่มฝึกตามปี</button>
+        {years.every(item => item.count === 0) && <p className="muted" style={{ fontSize: 13, margin: 0 }}>ขณะนี้ยังไม่มีข้อสอบที่ผูกกับปีข้อสอบ จึงยังไม่เปิดโหมดนี้</p>}
+        <button className="btn btn-secondary" disabled={busy || !yearId || years.every(item => item.count === 0)} onClick={() => start("year")}>เริ่มฝึกตามปี</button>
       </div>
 
       {error && <p role="alert" style={{ color: "#fca5a5" }}>{error}</p>}
