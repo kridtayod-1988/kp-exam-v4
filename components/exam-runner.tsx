@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { submitExamAction } from "@/lib/exams/actions";
 
 type Question = { id: string; question_text: string; choices: string[]; table_data: unknown };
@@ -14,7 +14,7 @@ export function ExamRunner({ attemptId, questions, startedAt, durationMinutes }:
   const [error, setError] = useState("");
   const answered = useMemo(() => answers.filter(value => value >= 0).length, [answers]);
 
-  async function submit() {
+  const submit = useCallback(async () => {
     if (busy) return;
     setBusy(true); setError("");
     try {
@@ -24,7 +24,7 @@ export function ExamRunner({ attemptId, questions, startedAt, durationMinutes }:
       setError(err instanceof Error ? err.message : "ส่งคำตอบไม่สำเร็จ");
       setBusy(false);
     }
-  }
+  }, [attemptId, answers, busy]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -35,7 +35,7 @@ export function ExamRunner({ attemptId, questions, startedAt, durationMinutes }:
 
   useEffect(() => {
     if (remaining === 0 && !busy) void submit();
-  }, [remaining, busy]);
+  }, [remaining, busy, submit]);
 
   const question = questions[current];
   const minutes = Math.floor(remaining / 60).toString().padStart(2, "0");
