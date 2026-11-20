@@ -19,12 +19,12 @@ alter table public.exam_blueprints enable row level security;
 drop policy if exists exam_blueprints_read_active on public.exam_blueprints;
 create policy exam_blueprints_read_active on public.exam_blueprints
   for select to authenticated
-  using (is_active or public.is_admin());
+  using (is_active or exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role = 'admin' and p.status = 'active'));
 drop policy if exists exam_blueprints_admin_write on public.exam_blueprints;
 create policy exam_blueprints_admin_write on public.exam_blueprints
   for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role = 'admin' and p.status = 'active'))
+  with check (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role = 'admin' and p.status = 'active'));
 grant select, insert, update, delete on public.exam_blueprints to authenticated;
 
 create table if not exists public.ai_question_drafts (
@@ -41,7 +41,7 @@ drop policy if exists ai_question_drafts_admin_only on public.ai_question_drafts
 create policy ai_question_drafts_admin_only on public.ai_question_drafts
   for all to authenticated
   using (public.is_admin())
-  with check (public.is_admin());
+  with check (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role = 'admin' and p.status = 'active'));
 grant select, insert, update, delete on public.ai_question_drafts to authenticated;
 
 create index if not exists idx_exam_blueprints_active on public.exam_blueprints (is_active, created_at desc);
@@ -71,7 +71,7 @@ $;
 drop policy if exists questions_select on public.questions;
 create policy questions_select_admin_only on public.questions
   for select to authenticated
-  using (public.is_admin());
+  using (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role = 'admin' and p.status = 'active'));
 
 -- Remove broad self-update policies on profiles: users must not edit role, EXP,
 -- counters, or status through the Data API. Admin changes remain RLS-gated.
@@ -269,8 +269,8 @@ begin
     end if;
     v_category_id := nullif(v_rule->>'category_id','')::uuid;
     v_cat := nullif(v_rule->>'cat','');
-    select coalesce(array_agg(code), '{}'::text[]) into v_sub_codes
-    from jsonb_array_elements_text(coalesce(v_rule->'sub_codes','[]'::jsonb)) as code;
+    select coalesce(array_agg(value), '{}'::text[]) into v_sub_codes
+    from jsonb_array_elements_text(coalesce(v_rule->'sub_codes','[]'::jsonb)) as codes(value);
 
     -- Unseen-first selection, scoped by the rule. No question bank is sent to the client.
     select coalesce(array_agg(id), '{}'::uuid[]) into v_cat_ids
