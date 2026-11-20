@@ -43,6 +43,13 @@ export function DashboardExamPicker({ categories, years, blueprints }: { categor
 
   return (
     <section className="stack">
+      {blueprints.length > 0 && <div className="card stack">
+        <div><h2 style={{margin:0}}>ชุดสอบตาม Blueprint</h2><p className="muted">คัดเลือกและสุ่มข้อสอบภายในฐานข้อมูล ส่งกลับเฉพาะชุดสอบที่เลือกแล้ว</p></div>
+        {blueprints.map(bp=><div key={bp.id} style={{borderTop:"1px solid #333",paddingTop:12,display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+          <div><strong>{bp.title}</strong><p className="muted" style={{margin:"4px 0",fontSize:12}}>{bp.total_questions} ข้อ · {bp.time_limit_minutes} นาที · {bp.code}</p></div>
+          <button className="btn" disabled={busy} onClick={()=>startBlueprint(bp.code)}>เริ่มชุดนี้</button>
+        </div>)}
+      </div>}
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 32 }}>📝</span>
