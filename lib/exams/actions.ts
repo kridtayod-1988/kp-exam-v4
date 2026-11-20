@@ -50,3 +50,15 @@ export async function submitExamAction(attemptId: string, answers: number[]) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function startBlueprintExamAction(code: string) {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("กรุณาเข้าสู่ระบบก่อนเริ่มทำข้อสอบ");
+  if (!/^[A-Z0-9_-]{2,60}$/.test(code)) throw new Error("Blueprint code ไม่ถูกต้อง");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_exam_attempt_from_blueprint", { p_blueprint_code: code });
+  if (error) throw new Error("เริ่มชุดสอบไม่สำเร็จ: " + error.message);
+  const result = data as { attempt_id?: string; total_questions?: number; time_limit_minutes?: number };
+  if (!result?.attempt_id) throw new Error("ไม่สามารถสร้างรอบสอบได้");
+  return { attemptId: result.attempt_id, total: result.total_questions ?? 0, durationMinutes: result.time_limit_minutes ?? 0 };
+}
