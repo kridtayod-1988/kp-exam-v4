@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
     if (authError || !user) return response({ error: "Invalid session" }, 401, origin);
 
     const { data: profile, error: profileError } = await supabase
-      .from("profiles").select("role").eq("id", user.id).single();
-    if (profileError || profile?.role !== "admin") return response({ error: "Admin access required" }, 403, origin);
+      .from("profiles").select("role,status").eq("id", user.id).single();
+    if (profileError || profile?.role !== "admin" || profile?.status !== "active") return response({ error: "Admin access required" }, 403, origin);
 
     const payload = await req.json() as Payload;
     if (!payload || typeof payload.category_id !== "string") return response({ error: "category_id is required" }, 400, origin);
