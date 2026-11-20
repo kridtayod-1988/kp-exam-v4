@@ -47,6 +47,154 @@ grant select, insert, update, delete on public.ai_question_drafts to authenticat
 create index if not exists idx_exam_blueprints_active on public.exam_blueprints (is_active, created_at desc);
 create index if not exists idx_ai_question_drafts_status on public.ai_question_drafts (status, created_at desc);
 
+
+-- Align authorization with the live schema: add soft-ban state, lock answer keys,
+-- and keep question selection on the database server.
+alter table public.profiles
+  add column if not exists status text not null default 'active'
+  check (status in ('active','banned'));
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, pg_temp
+as $
+  select exists (
+    select 1 from public.profiles
+    where id = (select auth.uid()) and role = 'admin' and status = 'active'
+  );
+$;
+
+-- Students read the allow-listed view only. The real question table is admin-only.
+drop policy if exists questions_select on public.questions;
+create policy questions_select_admin_only on public.questions
+  for select to authenticated
+  using (public.is_admin());
+
+-- Remove broad self-update policies on profiles: users must not edit role, EXP,
+-- counters, or status through the Data API. Admin changes remain RLS-gated.
+drop policy if exists profiles_owner_boundary on public.profiles;
+drop policy if exists profiles_update on public.profiles;
+drop policy if exists profiles_update_admin_only on public.profiles;
+create policy profiles_update_admin_only on public.profiles
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- Do not expose personal exposure/seen records to anonymous or authenticated
+-- clients through direct table/view access. The RPC runs with its owner privileges.
+revoke all on public.user_seen_questions from anon;
+revoke all on public.v_item_exposure from anon, authenticated;
+grant select on public.v_questions_public to authenticated;
+revoke all on public.v_questions_public from anon;
+
+create or replace function public.create_exam_attempt_sampled(
+  p_mode text,
+  p_count integer default 10,
+  p_category_id uuid default null,
+  p_exam_year_id uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_user_id uuid := auth.uid();
+  v_seen_ids uuid[] := '{}'::uuid[];
+  v_selected uuid[] := '{}'::uuid[];
+  v_requested integer;
+  v_attempt_id uuid;
+begin
+  if v_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not exists (
+    select 1 from public.profiles
+    where id = v_user_id and status = 'active'
+  ) then
+    raise exception 'Account is inactive or suspended' using errcode = '42501';
+  end if;
+  if p_mode not in ('full100','category','year') then
+    raise exception 'Invalid exam mode';
+  end if;
+  if p_mode = 'category' and p_category_id is null then
+    raise exception 'category_id is required';
+  end if;
+  if p_mode = 'year' and p_exam_year_id is null then
+    raise exception 'exam_year_id is required';
+  end if;
+
+  v_requested := case when p_mode = 'full100' then 100 else greatest(1, least(coalesce(p_count,10),50)) end;
+
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_user_id::text || ':' || p_mode || ':' ||
+    coalesce(p_category_id::text,'') || ':' || coalesce(p_exam_year_id::text,''), 0
+  ));
+
+  select seen_question_ids into v_seen_ids
+  from public.user_seen_questions where user_id = v_user_id;
+  v_seen_ids := coalesce(v_seen_ids, '{}'::uuid[]);
+
+  select coalesce(array_agg(id), '{}'::uuid[]) into v_selected
+  from (
+    select q.id
+    from public.questions q
+    left join public.v_item_exposure e on e.id = q.id
+    where q.is_active = true and q.deleted_at is null
+      and (p_mode <> 'category' or q.category_id = p_category_id)
+      and (p_mode <> 'year' or q.exam_year_id = p_exam_year_id)
+      and not (q.id = any(v_seen_ids))
+    order by coalesce(e.times_served,0) asc, random()
+    limit v_requested
+  ) unseen;
+
+  if cardinality(v_selected) < v_requested then
+    v_selected := v_selected || coalesce((
+      select array_agg(id) from (
+        select q.id
+        from public.questions q
+        left join public.v_item_exposure e on e.id = q.id
+        where q.is_active = true and q.deleted_at is null
+          and (p_mode <> 'category' or q.category_id = p_category_id)
+          and (p_mode <> 'year' or q.exam_year_id = p_exam_year_id)
+          and not (q.id = any(v_selected))
+        order by coalesce(e.times_served,0) asc, random()
+        limit (v_requested - cardinality(v_selected))
+      ) previously_seen
+    ), '{}'::uuid[]);
+  end if;
+
+  if cardinality(v_selected) = 0 then
+    raise exception 'No active questions available for this selection';
+  end if;
+
+  insert into public.exam_attempts (
+    user_id, mode, category_id, exam_year_id, question_ids,
+    user_answers, total_questions, paper_id, duration_seconds
+  ) values (
+    v_user_id, p_mode,
+    case when p_mode = 'category' then p_category_id else null end,
+    case when p_mode = 'year' then p_exam_year_id else null end,
+    v_selected, array_fill(-1, array[cardinality(v_selected)]),
+    cardinality(v_selected), p_mode || '-' || extract(epoch from now())::bigint, 0
+  ) returning id into v_attempt_id;
+
+  return jsonb_build_object(
+    'attempt_id', v_attempt_id,
+    'total_questions', cardinality(v_selected),
+    'mode', p_mode
+  );
+end;
+$;
+
+revoke all on function public.create_exam_attempt_sampled(text,integer,uuid,uuid) from public, anon;
+grant execute on function public.create_exam_attempt_sampled(text,integer,uuid,uuid) to authenticated;
+
+-- Blueprint sampling also rejects suspended accounts.
+
 -- Sampling stays in Postgres: only the selected question IDs are stored in the attempt.
 create or replace function public.create_exam_attempt_from_blueprint(p_blueprint_code text)
 returns jsonb
@@ -71,6 +219,9 @@ declare
 begin
   if v_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not exists (select 1 from public.profiles where id = v_user_id and status = 'active') then
+    raise exception 'Account is inactive or suspended' using errcode = '42501';
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended(v_user_id::text || ':' || p_blueprint_code, 0));
