@@ -53,7 +53,7 @@ export async function submitExamAction(attemptId: string, answers: number[]) {
 
 export async function startBlueprintExamAction(code: string) {
   const profile = await getCurrentProfile();
-  if (!profile) throw new Error("กรุณาเข้าสู่ระบบก่อนเริ่มทำข้อสอบ");
+  if (!profile || profile.status !== "active") throw new Error("บัญชีนี้ยังไม่สามารถเริ่มทำข้อสอบได้");
   if (!/^[A-Z0-9_-]{2,60}$/.test(code)) throw new Error("Blueprint code ไม่ถูกต้อง");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_exam_attempt_from_blueprint", { p_blueprint_code: code });
