@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { reviewAiDraftAction } from "@/lib/admin/actions";
 
 type Category = { id: string; name: string };
-type Draft = { id: string; status: string; created_at: string };
+type Draft = { id: string; status: string; created_at: string; payload: {question_text?:string;options?:string[];correct_answer_index?:number;explanation?:string;cat?:string;sub?:string} };
 
 export function AiQuestionGenerator({ categories, drafts: initial }: { categories: Category[]; drafts: Draft[] }) {
   const [categoryId,setCategoryId]=useState(categories[0]?.id ?? "");
@@ -45,7 +45,7 @@ export function AiQuestionGenerator({ categories, drafts: initial }: { categorie
     </section>
     <section className="card stack"><h2 style={{margin:0}}>รายการ Draft ที่รอตรวจ ({drafts.length})</h2>
       {drafts.length===0 && <p className="muted">ไม่มี Draft รอตรวจ</p>}
-      {drafts.map(d=><div key={d.id} style={{borderTop:"1px solid #333",paddingTop:12,display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}><div><strong>Draft {d.id.slice(0,8)}</strong><p className="muted" style={{margin:"4px 0",fontSize:12}}>{new Date(d.created_at).toLocaleString("th-TH")} · {d.status}</p></div><div style={{display:"flex",gap:8}}><button className="btn" disabled={busy} onClick={()=>review(d.id,"approve")}>อนุมัติ</button><button className="btn btn-secondary" disabled={busy} onClick={()=>review(d.id,"reject")}>ปฏิเสธ</button></div></div>)}
+      {drafts.map(d=><div key={d.id} style={{borderTop:"1px solid #333",paddingTop:12,display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}><div><strong>Draft {d.id.slice(0,8)}</strong><p className="muted" style={{margin:"4px 0",fontSize:12}}>{new Date(d.created_at).toLocaleString("th-TH")} · {d.status}</p><p>{d.payload?.question_text ?? "ไม่มีข้อความคำถาม"}</p><ol>{(d.payload?.options ?? []).map((option,i)=><li key={i} style={{color:i===d.payload?.correct_answer_index?"#f2c744":"inherit"}}>{option}{i===d.payload?.correct_answer_index?" ✓":""}</li>)}</ol><p className="muted">{d.payload?.explanation}</p></div><div style={{display:"flex",gap:8}}><button className="btn" disabled={busy} onClick={()=>review(d.id,"approve")}>อนุมัติ</button><button className="btn btn-secondary" disabled={busy} onClick={()=>review(d.id,"reject")}>ปฏิเสธ</button></div></div>)}
     </section>
   </div>;
 }
