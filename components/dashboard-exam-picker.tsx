@@ -1,17 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { startExamAction, type ExamMode } from "@/lib/exams/actions";
+import { startExamAction, startBlueprintExamAction, type ExamMode } from "@/lib/exams/actions";
 
 type Option = { id: string; name: string; count: number };
 type YearOption = { id: string; label: string; count: number };
+type BlueprintOption = { id:string; code:string; title:string; description:string|null; total_questions:number; time_limit_minutes:number };
 
-export function DashboardExamPicker({ categories, years }: { categories: Option[]; years: YearOption[] }) {
+export function DashboardExamPicker({ categories, years, blueprints }: { categories: Option[]; years: YearOption[]; blueprints: BlueprintOption[] }) {
   const [categoryId, setCategoryId] = useState("");
   const [yearId, setYearId] = useState("");
   const [count, setCount] = useState(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  async function startBlueprint(code: string) {
+    setBusy(true); setError("");
+    try {
+      const result = await startBlueprintExamAction(code);
+      window.location.assign(`/exam/${result.attemptId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เริ่ม Blueprint ไม่สำเร็จ");
+      setBusy(false);
+    }
+  }
 
   async function start(mode: ExamMode) {
     setBusy(true); setError("");
