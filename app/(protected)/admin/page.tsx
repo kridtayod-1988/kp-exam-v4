@@ -7,6 +7,7 @@ const links = [
   ["/admin/ai-generator","AI Question Generator","สร้าง Draft และอนุมัติก่อนเข้าคลัง"],
   ["/admin/taxonomy","หมวดหมู่และปีข้อสอบ","จัดการหมวดหมู่หลักและปีข้อสอบ"],
   ["/admin/import","นำเข้าข้อสอบ CSV","นำเข้าข้อสอบเป็นชุด"],
+  ["/admin/users","จัดการสมาชิก","ตรวจสอบสถิติและระงับบัญชี"],
 ];
 
 export default async function AdminPage() {
