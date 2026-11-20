@@ -192,3 +192,13 @@ export async function saveExamYearAction(input:{id?:string;label:string;year:num
   if(result.error) throw new Error(result.error.message);
   revalidatePath("/admin/taxonomy"); revalidatePath("/dashboard");
 }
+
+export async function setUserStatusAction(userId:string,status:"active"|"banned") {
+  const admin=await requireAdmin();
+  if(!/^[0-9a-f-]{36}$/i.test(userId)) throw new Error("User ID ไม่ถูกต้อง");
+  if(userId===admin.id && status==="banned") throw new Error("ไม่สามารถระงับบัญชีของตนเองได้");
+  const supabase=await createClient();
+  const {error}=await supabase.from("profiles").update({status}).eq("id",userId);
+  if(error) throw new Error(error.message);
+  revalidatePath("/admin/users");
+}
