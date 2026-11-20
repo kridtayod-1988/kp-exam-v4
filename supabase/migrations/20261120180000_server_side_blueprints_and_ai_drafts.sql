@@ -60,12 +60,12 @@ language sql
 security definer
 stable
 set search_path = public, pg_temp
-as $
+as $$
   select exists (
     select 1 from public.profiles
     where id = (select auth.uid()) and role = 'admin' and status = 'active'
   );
-$;
+$$;
 
 -- Students read the allow-listed view only. The real question table is admin-only.
 drop policy if exists questions_select on public.questions;
@@ -100,7 +100,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_user_id uuid := auth.uid();
   v_seen_ids uuid[] := '{}'::uuid[];
@@ -188,7 +188,7 @@ begin
     'mode', p_mode
   );
 end;
-$;
+$$;
 
 revoke all on function public.create_exam_attempt_sampled(text,integer,uuid,uuid) from public, anon;
 grant execute on function public.create_exam_attempt_sampled(text,integer,uuid,uuid) to authenticated;
