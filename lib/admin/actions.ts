@@ -50,30 +50,17 @@ export async function toggleBlueprintAction(id: string, isActive: boolean) {
 }
 
 export async function reviewAiDraftAction(id: string, decision: "approve" | "reject") {
-  const admin = await requireAdmin();
+  await requireAdmin();
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Draft ID ไม่ถูกต้อง");
   const supabase = await createClient();
-  const { data: draft, error: readError } = await supabase.from("ai_question_drafts")
-    .select("id,payload,status").eq("id", id).single();
-  if (readError || !draft) throw new Error("ไม่พบ AI Draft");
-  if (draft.status !== "draft") throw new Error("Draft นี้ได้รับการตรวจสอบแล้ว");
-
-  if (decision === "approve") {
-    const payload = draft.payload as Record<string, unknown>;
-    const allowed = ["category_id","cat","sub","question_text","table_data","options","correct_answer_index","explanation","difficulty","source"];
-    const question = Object.fromEntries(Object.entries(payload).filter(([key]) => allowed.includes(key)));
-    const { error: insertError } = await supabase.from("questions").insert({
-      ...question, source: "ai_generated", created_by: admin.id, is_active: true,
-    });
-    if (insertError) throw new Error("บันทึกข้อสอบไม่สำเร็จ: " + insertError.message);
-  }
-  const { error: updateError } = await supabase.from("ai_question_drafts").update({
-    status: decision === "approve" ? "approved" : "rejected",
-    reviewed_at: new Date().toISOString(), reviewed_by: admin.id,
-  }).eq("id", id).eq("status", "draft");
-  if (updateError) throw new Error(updateError.message);
+  const { data, error } = await supabase.rpc("review_ai_question_draft", {
+    p_draft_id: id,
+    p_approve: decision === "approve",
+  });
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/ai-generator");
   revalidatePath("/admin/questions");
+  return data;
 }
 
 export async function saveQuestionAction(input: {
