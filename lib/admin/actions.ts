@@ -121,7 +121,7 @@ function parseCsvRows(csv: string): string[][] {
     const ch=csv[i];
     if(ch === '"'){ if(quoted && csv[i+1] === '"'){cell+='"';i++;} else quoted=!quoted; }
     else if(ch === ',' && !quoted){row.push(cell);cell="";}
-    else if((ch === '\\n' || ch === '\\r') && !quoted){ if(ch==='\\r' && csv[i+1]==='\\n') i++; row.push(cell); if(row.some(v=>v.trim())) rows.push(row); row=[];cell=""; }
+    else if((ch === "\n" || ch === "\r") && !quoted){ if(ch === "\r" && csv[i+1] === "\n") i++; row.push(cell); if(row.some(v=>v.trim())) rows.push(row); row=[]; cell=""; }
     else cell+=ch;
   }
   row.push(cell); if(row.some(v=>v.trim())) rows.push(row);
