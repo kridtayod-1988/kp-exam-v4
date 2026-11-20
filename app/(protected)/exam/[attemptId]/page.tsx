@@ -10,7 +10,7 @@ export default async function ExamPage({ params }: { params: Promise<{ attemptId
 
   const { data: attempt, error } = await supabase
     .from("exam_attempts")
-    .select("id, mode, question_ids, started_at, finished_at")
+    .select("id, mode, blueprint_id, question_ids, started_at, finished_at")
     .eq("id", attemptId)
     .eq("user_id", profile.id)
     .maybeSingle();
@@ -30,7 +30,12 @@ export default async function ExamPage({ params }: { params: Promise<{ attemptId
   const questions = ids.map(id => byId.get(id)).filter(Boolean) as Array<{id:string;question_text:string;choices:string[];table_data:unknown}>;
   if (questions.length !== ids.length) notFound();
 
-  const durationMinutes = attempt.mode === "full100" ? 180 : 30;
+  let durationMinutes = attempt.mode === "full100" ? 180 : 30;
+  if (attempt.blueprint_id) {
+    const { data: blueprint } = await supabase.from("exam_blueprints")
+      .select("time_limit_minutes").eq("id", attempt.blueprint_id).maybeSingle();
+    if (blueprint?.time_limit_minutes) durationMinutes = blueprint.time_limit_minutes;
+  }
   return (
     <section className="stack">
       <div><p className="gold" style={{ marginBottom: 6 }}>กำลังทำข้อสอบ</p><h1 style={{ marginTop: 0 }}>ข้อสอบ ก.พ.</h1></div>
