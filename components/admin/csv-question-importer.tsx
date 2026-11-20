@@ -1,7 +1,7 @@
 "use client";
 import { useState,useTransition } from "react";
 import { importQuestionsCsvAction } from "@/lib/admin/actions";
-const sample="category_id,question_text,options,correct_answer_index,explanation,difficulty,cat,sub\nUUID-หมวด,ตัวอย่างคำถาม,\"[\\\"ตัวเลือก ก\\\",\\\"ตัวเลือก ข\\\",\\\"ตัวเลือก ค\\\",\\\"ตัวเลือก ง\\\"]\",0,คำอธิบาย,medium,ความสามารถทั่วไป,SC_M1";
+const sample='category_id,question_text,options,correct_answer_index,explanation,difficulty,cat,sub\n00000000-0000-0000-0000-000000000000,ตัวอย่างคำถาม,"[""ตัวเลือก ก"",""ตัวเลือก ข"",""ตัวเลือก ค"",""ตัวเลือก ง""]",0,คำอธิบาย,medium,ความสามารถทั่วไป,SC_M1';
 export function CsvQuestionImporter(){
  const [csv,setCsv]=useState("");const [message,setMessage]=useState("");const [pending,start]=useTransition();
  function submit(){setMessage("");start(async()=>{try{const result=await importQuestionsCsvAction(csv);setMessage("นำเข้าสำเร็จ "+result.count+" ข้อ");setCsv("");}catch(e){setMessage(e instanceof Error?e.message:"นำเข้าไม่สำเร็จ");}});}
