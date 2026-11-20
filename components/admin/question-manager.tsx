@@ -7,7 +7,7 @@ type Question={id:string;category_id:string;cat:string|null;sub:string|null;ques
 type QuestionForm = { categoryId:string; cat:string; sub:string; questionText:string; options:string[]; correctIndex:number; explanation:string; difficulty:"easy"|"medium"|"hard" };
 const blank:QuestionForm={categoryId:"",cat:"",sub:"",questionText:"",options:["","","",""],correctIndex:0,explanation:"",difficulty:"medium"};
 export function QuestionManager({categories,initial}:{categories:Category[];initial:Question[]}) {
- const [items,setItems]=useState(initial); const [form,setForm]=useState<QuestionForm>(blank); const [editing,setEditing]=useState<string|undefined>(); const [error,setError]=useState(""); const [pending,start]=useTransition();
+ const [items,setItems]=useState(initial); const [form,setForm]=useState<QuestionForm>({...blank,categoryId:categories[0]?.id??""}); const [editing,setEditing]=useState<string|undefined>(); const [error,setError]=useState(""); const [pending,start]=useTransition();
  function edit(q:Question){setEditing(q.id);setForm({categoryId:q.category_id,cat:q.cat??"",sub:q.sub??"",questionText:q.question_text,options:q.options,correctIndex:q.correct_answer_index,explanation:q.explanation,difficulty:q.difficulty});setError("");}
  function reset(){setEditing(undefined);setForm({...blank,categoryId:categories[0]?.id??""});setError("");}
  function submit(){setError("");start(async()=>{try{await saveQuestionAction({...form,id:editing,options:form.options});window.location.reload();}catch(e){setError(e instanceof Error?e.message:"บันทึกไม่สำเร็จ");}});}
