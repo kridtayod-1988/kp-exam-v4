@@ -1,0 +1,2 @@
+import { SignOutButton } from "@/components/sign-out-button";
+export default function AccountSuspendedPage(){return <main className="container" style={{minHeight:"70vh",display:"grid",placeItems:"center"}}><section className="card stack" style={{maxWidth:520,textAlign:"center"}}><div style={{fontSize:40}}>🔒</div><h1 style={{margin:0}}>บัญชีถูกระงับการใช้งาน</h1><p className="muted">บัญชีนี้ยังไม่สามารถเข้าใช้งานระบบสอบได้ หากคิดว่าเกิดข้อผิดพลาด กรุณาติดต่อผู้ดูแลระบบ</p><SignOutButton/></section></main>;}
