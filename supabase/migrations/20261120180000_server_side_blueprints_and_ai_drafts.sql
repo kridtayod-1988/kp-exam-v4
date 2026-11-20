@@ -107,6 +107,7 @@ declare
   v_selected uuid[] := '{}'::uuid[];
   v_requested integer;
   v_attempt_id uuid;
+  v_existing public.exam_attempts%rowtype;
 begin
   if v_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
@@ -133,6 +134,25 @@ begin
     v_user_id::text || ':' || p_mode || ':' ||
     coalesce(p_category_id::text,'') || ':' || coalesce(p_exam_year_id::text,''), 0
   ));
+
+  select * into v_existing
+  from public.exam_attempts
+  where user_id = v_user_id
+    and mode = p_mode
+    and category_id is not distinct from case when p_mode = 'category' then p_category_id else null end
+    and exam_year_id is not distinct from case when p_mode = 'year' then p_exam_year_id else null end
+    and finished_at is null
+  order by started_at desc
+  limit 1
+  for update;
+  if found then
+    return jsonb_build_object(
+      'attempt_id',v_existing.id,
+      'total_questions',v_existing.total_questions,
+      'mode',p_mode,
+      'reused_existing',true
+    );
+  end if;
 
   select seen_question_ids into v_seen_ids
   from public.user_seen_questions where user_id = v_user_id;
