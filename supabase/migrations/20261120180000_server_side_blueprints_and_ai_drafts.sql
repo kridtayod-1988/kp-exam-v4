@@ -425,3 +425,153 @@ alter policy exam_blueprints_admin_write on public.exam_blueprints
   using (private.is_admin()) with check (private.is_admin());
 alter policy ai_question_drafts_admin_only on public.ai_question_drafts
   using (private.is_admin()) with check (private.is_admin());
+
+
+-- Close direct-client paths that are no longer used by the Next.js application.
+revoke all on public.user_seen_questions from anon, authenticated;
+revoke all on public.system_config from anon, authenticated;
+revoke insert, update, delete on public.exam_attempts from authenticated;
+
+-- Legacy exam_sets policies also used the public helper; route them through private.is_admin.
+alter policy exam_sets_delete_admin on public.exam_sets using (private.is_admin());
+alter policy exam_sets_insert_admin on public.exam_sets with check (private.is_admin());
+alter policy exam_sets_update_admin on public.exam_sets using (private.is_admin()) with check (private.is_admin());
+
+-- Serialize submissions and make retries idempotent so EXP/statistics are awarded once.
+create or replace function public.submit_exam(p_attempt_id uuid, p_answers jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_attempt record;
+  v_score int := 0;
+  v_total int;
+  v_exp int;
+  v_answers int[];
+  v_qids uuid[];
+  v_i int;
+  v_correct int;
+  v_user_answer int;
+  v_prev_exp int;
+  v_new_exp int;
+  v_new_attempts int;
+  v_new_best int;
+  v_level_before int;
+  v_level_after int;
+begin
+  if v_user_id is null then
+    raise exception 'กรุณาเข้าสู่ระบบก่อน' using errcode = '28000';
+  end if;
+  if not exists (select 1 from public.profiles where id = v_user_id and status = 'active') then
+    raise exception 'Account is inactive or suspended' using errcode = '42501';
+  end if;
+
+  select * into v_attempt
+  from public.exam_attempts
+  where id = p_attempt_id and user_id = v_user_id
+  for update;
+
+  if not found then
+    raise exception 'ไม่พบข้อสอบนี้ หรือคุณไม่มีสิทธิ์';
+  end if;
+
+  if v_attempt.finished_at is not null then
+    return jsonb_build_object(
+      'attempt_id', p_attempt_id,
+      'score', v_attempt.score,
+      'total', v_attempt.total_questions,
+      'exp_gained', v_attempt.exp_gained,
+      'idempotent_replay', true,
+      'duration_seconds', v_attempt.duration_seconds
+    );
+  end if;
+
+  v_qids := v_attempt.question_ids;
+  v_total := coalesce(array_length(v_qids, 1), 0);
+  if v_total = 0 then raise exception 'ข้อสอบไม่มีรายการคำถาม'; end if;
+
+  v_answers := array_fill(-1, array[v_total]);
+  if jsonb_typeof(p_answers) = 'array' then
+    for v_i in 0..jsonb_array_length(p_answers) - 1 loop
+      declare
+        a jsonb := p_answers -> v_i;
+      begin
+        if jsonb_typeof(a) = 'object' then
+          declare
+            q_idx int := coalesce((a ->> 'no')::int - 1, -1);
+            choice int := coalesce((a ->> 'choice')::int, -1);
+          begin
+            if q_idx >= 0 and q_idx < v_total and choice between -1 and 3 then
+              v_answers[q_idx + 1] := choice;
+            end if;
+          end;
+        elsif jsonb_typeof(a) = 'number' and v_i < v_total then
+          v_answers[v_i + 1] := (a)::text::int;
+        end if;
+      end;
+    end loop;
+  end if;
+
+  for v_i in 1..v_total loop
+    select correct_answer_index into v_correct
+    from public.questions where id = v_qids[v_i];
+    v_user_answer := v_answers[v_i];
+    if v_user_answer between 0 and 3 and v_user_answer = v_correct then
+      v_score := v_score + 1;
+    end if;
+  end loop;
+
+  v_exp := v_score * 10;
+  update public.exam_attempts
+  set user_answers = v_answers,
+      score = v_score,
+      exp_gained = v_exp,
+      finished_at = now(),
+      duration_seconds = greatest(0, extract(epoch from (now() - started_at))::int)
+  where id = p_attempt_id;
+
+  select total_exp, total_attempts, best_score
+  into v_prev_exp, v_new_attempts, v_new_best
+  from public.profiles where id = v_user_id for update;
+
+  v_new_exp := coalesce(v_prev_exp, 0) + v_exp;
+  v_new_attempts := coalesce(v_new_attempts, 0) + 1;
+  v_new_best := greatest(coalesce(v_new_best, 0), v_score);
+  update public.profiles
+  set total_exp = v_new_exp, total_attempts = v_new_attempts,
+      best_score = v_new_best, last_attempt_at = now()
+  where id = v_user_id;
+
+  v_level_before := 1;
+  while v_level_before < 200 and coalesce(v_prev_exp,0) >= 50 * (v_level_before + 1) * v_level_before loop
+    v_level_before := v_level_before + 1;
+  end loop;
+  v_level_after := 1;
+  while v_level_after < 200 and v_new_exp >= 50 * (v_level_after + 1) * v_level_after loop
+    v_level_after := v_level_after + 1;
+  end loop;
+
+  insert into public.user_seen_questions(user_id,seen_question_ids)
+  values(v_user_id,v_qids)
+  on conflict(user_id) do update
+  set seen_question_ids = (
+    select array_agg(distinct x)
+    from unnest(public.user_seen_questions.seen_question_ids || v_qids) as x
+    where x is not null
+  );
+
+  return jsonb_build_object(
+    'attempt_id',p_attempt_id,'score',v_score,'total',v_total,
+    'exp_gained',v_exp,'new_total_exp',v_new_exp,
+    'leveled_up',v_level_after > v_level_before,'new_level',v_level_after,
+    'duration_seconds',extract(epoch from (now() - v_attempt.started_at))::int,
+    'idempotent_replay',false
+  );
+end;
+$$;
+
+revoke all on function public.submit_exam(uuid,jsonb) from public, anon;
+grant execute on function public.submit_exam(uuid,jsonb) to authenticated;
