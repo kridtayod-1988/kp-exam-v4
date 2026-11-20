@@ -684,3 +684,70 @@ end;
 $$;
 revoke all on function public.review_ai_question_draft(uuid,boolean) from public, anon;
 grant execute on function public.review_ai_question_draft(uuid,boolean) to authenticated;
+
+
+create or replace function public.get_exam_review(p_attempt_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_attempt record;
+  v_items jsonb := '[]'::jsonb;
+  v_question jsonb;
+  v_i int;
+  v_q record;
+  v_choice int;
+begin
+  if v_user_id is null then
+    raise exception 'กรุณาเข้าสู่ระบบก่อน' using errcode = '28000';
+  end if;
+  if not exists (select 1 from public.profiles where id = v_user_id and status = 'active') then
+    raise exception 'Account is inactive or suspended' using errcode = '42501';
+  end if;
+
+  select * into v_attempt
+  from public.exam_attempts
+  where id = p_attempt_id
+    and (user_id = v_user_id or public.is_admin());
+  if not found then raise exception 'ไม่พบข้อสอบนี้ หรือคุณไม่มีสิทธิ์'; end if;
+  if v_attempt.finished_at is null then raise exception 'ข้อสอบนี้ยังทำไม่เสร็จ'; end if;
+
+  for v_i in 1..array_length(v_attempt.question_ids, 1) loop
+    select q.id,q.question_text,q.options,q.correct_answer_index,q.explanation,q.table_data
+    into v_q
+    from public.questions q
+    where q.id = v_attempt.question_ids[v_i];
+    if not found then continue; end if;
+
+    v_choice := v_attempt.user_answers[v_i];
+    v_question := jsonb_build_object(
+      'no',v_i,
+      'question_id',v_q.id,
+      'question_text',v_q.question_text,
+      'choices',to_jsonb(v_q.options),
+      'correct_answer_index',v_q.correct_answer_index,
+      'user_choice',v_choice,
+      'is_correct',(v_choice is not null and v_choice >= 0 and v_choice = v_q.correct_answer_index),
+      'explanation',coalesce(v_q.explanation,''),
+      'table_data',v_q.table_data
+    );
+    v_items := v_items || jsonb_build_array(v_question);
+  end loop;
+
+  return jsonb_build_object(
+    'attempt_id',p_attempt_id,
+    'score',v_attempt.score,
+    'total',v_attempt.total_questions,
+    'exp_gained',v_attempt.exp_gained,
+    'duration_seconds',v_attempt.duration_seconds,
+    'started_at',v_attempt.started_at,
+    'finished_at',v_attempt.finished_at,
+    'items',v_items
+  );
+end;
+$$;
+revoke all on function public.get_exam_review(uuid) from public, anon;
+grant execute on function public.get_exam_review(uuid) to authenticated;
