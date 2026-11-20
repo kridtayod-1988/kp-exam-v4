@@ -6,9 +6,10 @@ export default async function DashboardPage() {
   const profile = await requireUser();
   const supabase = await createClient();
 
-  const [{ data: categories }, { data: years }] = await Promise.all([
+  const [{ data: categories }, { data: years }, { data: blueprints }] = await Promise.all([
     supabase.from("categories").select("id, name, sort_order").eq("is_active", true).order("sort_order"),
     supabase.from("exam_years").select("id, label, year").eq("is_active", true).order("year", { ascending: false }),
+    supabase.from("exam_blueprints").select("id,code,title,description,total_questions,time_limit_minutes").eq("is_active",true).order("created_at",{ascending:false}),
   ]);
 
   const categoryOptions = await Promise.all((categories ?? []).map(async item => {
@@ -32,7 +33,7 @@ export default async function DashboardPage() {
         <div className="card"><p className="muted" style={{ margin: 0 }}>คะแนนดีที่สุด</p><h2 style={{ marginBottom: 0 }}>{profile.best_score}</h2></div>
         <div className="card"><p className="muted" style={{ margin: 0 }}>EXP สะสม</p><h2 style={{ marginBottom: 0 }}>{profile.total_exp}</h2></div>
       </div>
-      <DashboardExamPicker categories={categoryOptions} years={yearOptions} />
+      <DashboardExamPicker categories={categoryOptions} years={yearOptions} blueprints={(blueprints ?? []) as Array<{id:string;code:string;title:string;description:string|null;total_questions:number;time_limit_minutes:number}>} />
     </section>
   );
 }
