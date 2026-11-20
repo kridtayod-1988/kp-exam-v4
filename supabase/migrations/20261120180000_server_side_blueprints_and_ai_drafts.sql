@@ -337,3 +337,91 @@ $$;
 
 revoke all on function public.create_exam_attempt_from_blueprint(text) from public, anon;
 grant execute on function public.create_exam_attempt_from_blueprint(text) to authenticated;
+
+
+-- Keep the admin predicate in a non-exposed schema. It returns only a boolean,
+-- and is callable by authenticated sessions only for RLS evaluation.
+create schema if not exists private;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
+
+create or replace function private.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = (select auth.uid()) and role = 'admin' and status = 'active'
+  );
+$$;
+revoke all on function private.is_admin() from public, anon;
+grant execute on function private.is_admin() to authenticated;
+
+-- Replace legacy policy calls with the private helper so the helper is not
+-- exposed as a PostgREST RPC endpoint and avoid recursive profiles subqueries.
+alter policy profiles_select on public.profiles
+  using ((select auth.uid()) = id or private.is_admin());
+alter policy profiles_delete on public.profiles
+  using (private.is_admin());
+alter policy profiles_update_admin_only on public.profiles
+  using (private.is_admin()) with check (private.is_admin());
+
+alter policy categories_delete_admin on public.categories using (private.is_admin());
+alter policy categories_insert_admin on public.categories with check (private.is_admin());
+alter policy categories_update_admin on public.categories using (private.is_admin()) with check (private.is_admin());
+
+alter policy exam_years_delete_admin on public.exam_years using (private.is_admin());
+alter policy exam_years_insert_admin on public.exam_years with check (private.is_admin());
+alter policy exam_years_update_admin on public.exam_years using (private.is_admin()) with check (private.is_admin());
+
+alter policy questions_select_admin_only on public.questions using (private.is_admin());
+drop policy if exists questions_admin_insert on public.questions;
+alter policy questions_insert_admin on public.questions with check (private.is_admin());
+alter policy questions_update_admin on public.questions using (private.is_admin()) with check (private.is_admin());
+alter policy questions_delete_admin on public.questions using (private.is_admin());
+
+alter policy exam_attempts_delete on public.exam_attempts using (private.is_admin());
+alter policy exam_attempts_owner_boundary on public.exam_attempts
+  using ((user_id = (select auth.uid())) or private.is_admin())
+  with check ((user_id = (select auth.uid())) or private.is_admin());
+alter policy exam_attempts_select on public.exam_attempts
+  using ((user_id = (select auth.uid())) or private.is_admin());
+
+alter policy user_seen_questions_owner_boundary on public.user_seen_questions
+  using ((user_id = (select auth.uid())) or private.is_admin())
+  with check ((user_id = (select auth.uid())) or private.is_admin());
+alter policy user_seen_select on public.user_seen_questions
+  using ((user_id = (select auth.uid())) or private.is_admin());
+alter policy user_seen_update on public.user_seen_questions
+  using ((user_id = (select auth.uid())) or private.is_admin())
+  with check ((user_id = (select auth.uid())) or private.is_admin());
+
+alter policy system_config_select on public.system_config
+  using ((key = 'public') or private.is_admin());
+alter policy system_config_update_admin on public.system_config
+  using (private.is_admin()) with check (private.is_admin());
+
+alter policy answers_owner_boundary on public.answers
+  using (
+    exists (select 1 from public.exam_attempts ea where ea.id = answers.attempt_id and ea.user_id = (select auth.uid()))
+    or private.is_admin()
+  )
+  with check (
+    exists (select 1 from public.exam_attempts ea where ea.id = answers.attempt_id and ea.user_id = (select auth.uid()))
+    or private.is_admin()
+  );
+alter policy answers_select_owner_or_admin on public.answers
+  using (
+    private.is_admin()
+    or exists (select 1 from public.exam_attempts ea where ea.id = answers.attempt_id and ea.user_id = (select auth.uid()) and answers.question_id = any(ea.question_ids))
+  );
+
+alter policy exam_blueprints_read_active on public.exam_blueprints
+  using (is_active or private.is_admin());
+alter policy exam_blueprints_admin_write on public.exam_blueprints
+  using (private.is_admin()) with check (private.is_admin());
+alter policy ai_question_drafts_admin_only on public.ai_question_drafts
+  using (private.is_admin()) with check (private.is_admin());
