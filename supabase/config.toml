@@ -1,0 +1,2 @@
+[functions.generate-questions]
+verify_jwt = true
