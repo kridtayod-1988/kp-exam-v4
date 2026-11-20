@@ -575,3 +575,23 @@ $$;
 
 revoke all on function public.submit_exam(uuid,jsonb) from public, anon;
 grant execute on function public.submit_exam(uuid,jsonb) to authenticated;
+
+
+-- Policies using the private helper must not target anon (which has no private schema usage).
+alter policy categories_delete_admin on public.categories to authenticated;
+alter policy categories_insert_admin on public.categories to authenticated;
+alter policy categories_update_admin on public.categories to authenticated;
+alter policy exam_years_delete_admin on public.exam_years to authenticated;
+alter policy exam_years_insert_admin on public.exam_years to authenticated;
+alter policy exam_years_update_admin on public.exam_years to authenticated;
+alter policy exam_sets_delete_admin on public.exam_sets to authenticated;
+alter policy exam_sets_insert_admin on public.exam_sets to authenticated;
+alter policy exam_sets_update_admin on public.exam_sets to authenticated;
+alter policy questions_insert_admin on public.questions to authenticated;
+alter policy questions_update_admin on public.questions to authenticated;
+alter policy questions_delete_admin on public.questions to authenticated;
+alter policy system_config_select on public.system_config to authenticated;
+alter policy system_config_update_admin on public.system_config to authenticated;
+
+-- This helper is not part of the client API.
+revoke all on function public.rls_auto_enable() from public, anon, authenticated;
