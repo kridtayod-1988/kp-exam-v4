@@ -432,3 +432,7 @@ DevOps
 ---
 
 License: สำหรับการศึกษา — ไม่ใช่ระบบสอบจริงของสำนักงาน ก.พ.
+
+## Security architecture upgrade
+
+See [README-SECURITY-UPGRADE.md](./README-SECURITY-UPGRADE.md) for the isolated Next.js, server-side sampling, RLS, AI Edge Function, and verification plan. The migration is prepared only; it has not been applied to Production.
