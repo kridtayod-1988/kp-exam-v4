@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - migration/nextjs-app-router
+      - feature/security-and-architecture-upgrade
   pull_request:
     branches:
       - main
