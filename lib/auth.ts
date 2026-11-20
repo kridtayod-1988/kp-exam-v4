@@ -27,7 +27,6 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
 
   if (error || !profile) return null;
   if (profile.role !== "user" && profile.role !== "admin") return null;
-  if (profile.status !== "active") return null;
 
   return profile as UserProfile;
 }
@@ -35,6 +34,7 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
 export async function requireUser() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login?next=/dashboard");
+  if (profile.status !== "active") redirect("/account-suspended");
   return profile;
 }
 
