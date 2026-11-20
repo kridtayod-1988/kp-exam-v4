@@ -12,7 +12,7 @@ export async function startExamAction(input: {
   examYearId?: string;
 }) {
   const profile = await getCurrentProfile();
-  if (!profile) throw new Error("กรุณาเข้าสู่ระบบก่อนเริ่มทำข้อสอบ");
+  if (!profile || profile.status !== "active") throw new Error("บัญชีนี้ยังไม่สามารถเริ่มทำข้อสอบได้");
 
   if (input.mode === "category" && !input.categoryId) throw new Error("กรุณาเลือกหมวดหมู่");
   if (input.mode === "year" && !input.examYearId) throw new Error("กรุณาเลือกปีข้อสอบ");
@@ -37,7 +37,7 @@ export async function startExamAction(input: {
 
 export async function submitExamAction(attemptId: string, answers: number[]) {
   const profile = await getCurrentProfile();
-  if (!profile) throw new Error("กรุณาเข้าสู่ระบบใหม่อีกครั้ง");
+  if (!profile || profile.status !== "active") throw new Error("บัญชีนี้ยังไม่สามารถส่งคำตอบได้");
   if (!Array.isArray(answers) || answers.some(value => !Number.isInteger(value) || value < -1 || value > 3)) {
     throw new Error("รูปแบบคำตอบไม่ถูกต้อง");
   }
