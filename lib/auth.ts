@@ -10,6 +10,7 @@ export type UserProfile = {
   total_attempts: number;
   best_score: number;
   total_exp: number;
+  status: "active" | "banned";
 };
 
 export async function getCurrentProfile(): Promise<UserProfile | null> {
@@ -20,12 +21,13 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, display_name, email, role, photo_url, total_attempts, best_score, total_exp")
+    .select("id, display_name, email, role, photo_url, total_attempts, best_score, total_exp, status")
     .eq("id", claimsData.claims.sub)
     .maybeSingle();
 
   if (error || !profile) return null;
   if (profile.role !== "user" && profile.role !== "admin") return null;
+  if (profile.status !== "active") return null;
 
   return profile as UserProfile;
 }
