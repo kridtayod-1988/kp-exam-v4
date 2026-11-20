@@ -595,3 +595,72 @@ alter policy system_config_update_admin on public.system_config to authenticated
 
 -- This helper is not part of the client API.
 revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+
+
+-- Review and publish an AI draft atomically; duplicate approvals cannot create duplicate questions.
+create or replace function public.review_ai_question_draft(p_draft_id uuid, p_approve boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_draft public.ai_question_drafts%rowtype;
+  v_payload jsonb;
+  v_question_id uuid;
+begin
+  if v_user_id is null or not private.is_admin() then
+    raise exception 'Admin access required' using errcode = '42501';
+  end if;
+
+  select * into v_draft
+  from public.ai_question_drafts
+  where id = p_draft_id
+  for update;
+  if not found then raise exception 'Draft not found'; end if;
+  if v_draft.status <> 'draft' then
+    return jsonb_build_object('already_reviewed',true,'status',v_draft.status);
+  end if;
+
+  if p_approve then
+    v_payload := v_draft.payload;
+    if jsonb_typeof(v_payload->'options') <> 'array'
+       or jsonb_array_length(v_payload->'options') <> 4
+       or (v_payload->>'correct_answer_index')::integer not between 0 and 3
+       or length(coalesce(v_payload->>'question_text','')) < 5 then
+      raise exception 'Draft payload failed validation';
+    end if;
+
+    insert into public.questions (
+      category_id, cat, sub, question_text, options,
+      correct_answer_index, explanation, difficulty, table_data,
+      source, created_by, is_active
+    ) values (
+      (v_payload->>'category_id')::uuid,
+      nullif(v_payload->>'cat',''),
+      nullif(v_payload->>'sub',''),
+      v_payload->>'question_text',
+      array(select jsonb_array_elements_text(v_payload->'options')),
+      (v_payload->>'correct_answer_index')::integer,
+      coalesce(v_payload->>'explanation',''),
+      coalesce(v_payload->>'difficulty','medium'),
+      v_payload->'table_data',
+      'ai_generated', v_user_id, true
+    ) returning id into v_question_id;
+  end if;
+
+  update public.ai_question_drafts
+  set status = case when p_approve then 'approved' else 'rejected' end,
+      reviewed_at = now(), reviewed_by = v_user_id
+  where id = p_draft_id;
+
+  return jsonb_build_object(
+    'draft_id',p_draft_id,
+    'status',case when p_approve then 'approved' else 'rejected' end,
+    'question_id',v_question_id
+  );
+end;
+$$;
+revoke all on function public.review_ai_question_draft(uuid,boolean) from public, anon;
+grant execute on function public.review_ai_question_draft(uuid,boolean) to authenticated;
